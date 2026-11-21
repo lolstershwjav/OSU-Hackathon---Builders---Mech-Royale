@@ -167,3 +167,7 @@ The incumbent led the latest fast validation batch with 0.44 mean squad placemen
 ### Pressure-triggered retreat experiment
 
 Run `python3 arena_trials.py --kit ../mechfight-kit --checkpoint models/trained.json --seed UNIQUE_INTEGER --controller pressure-retreat --output pressure-retreat.json`. This challenger temporarily chooses evade after recent damage when at least two nearby opponents are visible. The benchmark uses identical weights, opponent pools and map seeds for the baseline and challenger. Zone routing still takes priority. This experimental controller is selected only by the benchmark.
+
+### Generation 1974 checkpoint
+
+In fast validation, the incumbent led squad with 0.61 mean placement points and trained Scavenger led free-for-all with 9.50. Over 36 paired promotion seeds, Scavenger scored 0.19 squad and 9.75 free-for-all against the incumbent's 0.50 and 9.58. The squad regression kept the incumbent as the default. The archive covers distinct policy matrices first observed after generation 1820. All placement scores are simulator results.
