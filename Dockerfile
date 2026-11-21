@@ -24,7 +24,7 @@ COPY --from=naruto-builder /build/naruto/naruto-bin /app/naruto-bin
 # Copy Python bot files
 COPY bob_mix_improved.py /app/
 COPY tsunade.py /app/
-COPY lance_bot.py /app/
+COPY tsunade_ref.py /app/
 COPY navigation.py /app/
 COPY policy.py /app/
 COPY mechfight.py /app/
@@ -37,9 +37,6 @@ COPY arena_calibrate.py /app/
 # Copy model weights
 COPY models/ /app/models/
 
-# Copy licenses
-COPY LICENSE-lance /app/
-COPY LICENSE-naruto /app/
 
 # Ensure Naruto binary is executable
 RUN chmod +x /app/naruto-bin
