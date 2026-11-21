@@ -100,6 +100,7 @@ type Brain struct {
 	npcBearing         float64
 	notPractice        bool
 	startAlive, kills  int
+	lastKillAt         float64
 	otherDead          int
 	stickID            int
 	stickAt, loseAt    float64
@@ -355,6 +356,7 @@ func (b *Brain) observe(o *Obs) {
 			}
 		case "kill":
 			b.kills++
+			b.lastKillAt = now
 			delete(b.tracks, e.Target)
 		}
 	}
@@ -818,6 +820,10 @@ func (b *Brain) step(o *Obs, act *Action) {
 		b.coverMove(o, seen, &mx, &my):
 		boost = me.Energy > 30 && (mx != 0 || my != 0)
 		mode = "evade"
+	case b.pracOn && b.kills > 0 && now-b.lastKillAt < 1.2 &&
+		foe == nil && crowd == 0 && b.lastHurt <= b.lastKillAt &&
+		me.Grounded && !zoneShould && b.W.Exposure(x, y) < 0.45:
+		mode = "post-kill-hold"
 	case foe != nil:
 
 		ready := gun != nil && gun.Ammo > 0 && gun.Reload <= 0.25 && foe.Dist <= gun.Stats.Range-10
@@ -1674,6 +1680,44 @@ type lootChoice struct {
 	value float64
 }
 
+// silkPath estimates the time a laser pickup route spends inside enemy sightlines.
+func (b *Brain) silkPath(me *Self, goal Vec3, threats []*Track) float64 {
+	x, y := me.Pos[0], me.Pos[1]
+	distance := hyp(goal[0]-x, goal[1]-y)
+	if len(threats) == 0 || distance < 8 {
+		return 0
+	}
+
+	exposed := 0.0
+	sample := func(px, py, nx, ny float64) {
+		length := hyp(nx-px, ny-py)
+		for steps, i := max(1, int(math.Ceil(length/8))), 0; i < steps; i++ {
+			t := (float64(i) + 0.5) / float64(steps)
+			sx, sy := px+(nx-px)*t, py+(ny-py)*t
+			body := Vec3{sx, sy, b.W.WalkAt(sx, sy) + me.Stats.Height*0.5}
+			for _, enemy := range threats {
+				if hyp(enemy.Pos[0]-sx, enemy.Pos[1]-sy) < 150 && b.W.Clear(b.eye(enemy), body) {
+					exposed += length / float64(steps)
+					break
+				}
+			}
+		}
+	}
+	if !b.W.LineWalkable(x, y, goal[0], goal[1]) {
+		path, reached := b.W.Path(x, y, goal[0], goal[1], 2500)
+		if !reached {
+			return 0
+		}
+		for _, cell := range path {
+			nx, ny := b.W.CellPos(int(cell))
+			sample(x, y, nx, ny)
+			x, y = nx, ny
+		}
+	}
+	sample(x, y, goal[0], goal[1])
+	return exposed / me.Stats.WalkSpeed
+}
+
 func (b *Brain) chooseLoot(o *Obs, hpFrac float64, danger bool) *lootChoice {
 	me := &o.Self
 	x, y := me.Pos[0], me.Pos[1]
@@ -1683,6 +1727,12 @@ func (b *Brain) chooseLoot(o *Obs, hpFrac float64, danger bool) *lootChoice {
 	var best *lootChoice
 	bestU := 0.0
 	econ := b.P.Econ
+	var pickupThreats []*Track
+	for _, enemy := range b.tracks {
+		if now-enemy.Seen <= 1 && hyp(enemy.Pos[0]-x, enemy.Pos[1]-y) < 300 {
+			pickupThreats = append(pickupThreats, enemy)
+		}
+	}
 	consider := func(kind string, id int, pos Vec3, value float64) {
 		if until, ok := b.bad[id]; ok && until > now {
 			return
@@ -1704,6 +1754,20 @@ func (b *Brain) chooseLoot(o *Obs, hpFrac float64, danger bool) *lootChoice {
 		}
 		if nf := b.W.NearestFree(b.W.Cell(pos[0], pos[1])); nf < 0 || b.W.Comp[nf] != b.W.MainComp {
 			return
+		}
+		if kind == "pickup" && b.pickups[id].Kind == "laser" {
+			exposure := b.silkPath(me, pos, pickupThreats)
+			if b.notPractice {
+				if exposure >= 3 {
+					return
+				}
+				value *= 1 - 0.15*exposure
+			} else if b.pracOn {
+				// Keep lasers competitive after the squad starts pursuing us.
+				value *= 1 - math.Min(0.30, 0.06*exposure)
+			} else {
+				value *= 1 - math.Min(0.50, 0.12*exposure)
+			}
 		}
 		u := value / (d + 18)
 		if id == b.lootID {
