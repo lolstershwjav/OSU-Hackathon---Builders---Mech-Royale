@@ -1,0 +1,63 @@
+{
+  "simulator": "map-backed",
+  "step_s": 0.1,
+  "attempted_generation": 3444,
+  "seed": 1795294931744466986,
+  "status": "interrupted_before_checkpoint",
+  "matched_results": [
+    {
+      "seed": 19996589,
+      "format": "squad",
+      "baseline": 3,
+      "challenger": 3
+    },
+    {
+      "seed": 19996589,
+      "format": "free_for_all",
+      "baseline": 15,
+      "challenger": 14
+    },
+    {
+      "seed": 12219156,
+      "format": "squad",
+      "baseline": 8,
+      "challenger": 5
+    },
+    {
+      "seed": 12219156,
+      "format": "free_for_all",
+      "baseline": 7,
+      "challenger": 11
+    },
+    {
+      "seed": 10811432,
+      "format": "squad",
+      "baseline": 0,
+      "challenger": 0
+    },
+    {
+      "seed": 10811432,
+      "format": "free_for_all",
+      "baseline": 8,
+      "challenger": 2
+    },
+    {
+      "seed": 17635501,
+      "format": "squad",
+      "baseline": 3,
+      "challenger": 2
+    },
+    {
+      "seed": 17635501,
+      "format": "free_for_all",
+      "baseline": 2,
+      "challenger": 2
+    },
+    {
+      "seed": 15586067,
+      "format": "squad",
+      "baseline": 6,
+      "challenger": 2
+    }
+  ]
+}

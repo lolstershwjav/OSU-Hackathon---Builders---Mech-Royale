@@ -231,3 +231,15 @@ The restored Naruto handoff and its no-switch control tied at 9 squad points and
 This update archives 6 distinct policy matrices. On the paired fast simulator promotion seeds, Duelist changed squad placement by -0.03 points and free-for-all placement by +0.28 points. The active fast trainer policy is Scavenger Initial.
 
 The Naruto rotation trial compared RUC with the same runtime plus the mapped detour allowance. Squad went from 4.50 to 4.50 across 2 paired seeds. Free-for-all went from 5.50 to 6.00 across two paired seeds. The second free-for-all seed had four response fallbacks for RUC and two for rotation, which limits attribution of the placement gain. See the paired match diagnostics for fallback counts and placement. Both candidates passed the local official-kit replay.
+
+### Generation 3458 checkpoint
+
+This update archives 6 distinct policy matrices. On the paired fast simulator promotion seeds, Scavenger changed squad placement by +0.06 points and free-for-all placement by +0.14 points. The active fast trainer policy is Scavenger Initial.
+
+The first attempt to advance from generation 3430 was interrupted during the paired map-backed gate. The completed match pairs are archived separately as partial evidence. The trainer restarted from the last valid checkpoint.
+
+In the squad map-backed comparison, disabling SilkPath changed placement from 4.50 to 5.50 across 2 paired seeds.
+
+In the free-for-all map-backed comparison, disabling SilkPath changed placement from 15.00 to 15.00 across 1 paired seeds.
+
+Both pinned branches passed all 300 local official-kit replay observations.

@@ -1,0 +1,164 @@
+{
+  "simulator": "map-backed",
+  "step_s": 0.1,
+  "commits": {
+    "silkpath": "bac88841d31f86d5e7650335156e57478eee40e8",
+    "disabled": "6241e17d083a8ee9497bbab2ec2d96baf7418e66"
+  },
+  "placement": {
+    "squad": {
+      "silkpath": 4.5,
+      "disabled": 5.5,
+      "paired_seeds": 2
+    },
+    "free_for_all": {
+      "silkpath": 15,
+      "disabled": 15,
+      "paired_seeds": 1
+    }
+  },
+  "host_replay_p99_ms": {
+    "silkpath": 3.0,
+    "disabled": 1.8
+  },
+  "paired_runs": [
+    {
+      "seed": 19663043,
+      "format": "free_for_all",
+      "runs": {
+        "silkpath": {
+          "seed": 19663043,
+          "mode": "free_for_all",
+          "variant": "ObservedNaruto",
+          "points": 15,
+          "duration": 371.0,
+          "switch": null,
+          "fallbacks": 0,
+          "diagnostics": {
+            "zone_damage": 0,
+            "combat_damage": 4900.200000000001,
+            "blocked_steps": 0,
+            "pressure_s": 0,
+            "shots": 153,
+            "hits": 105,
+            "zone_deaths": 0,
+            "combat_deaths": 0,
+            "timeouts": 0
+          }
+        },
+        "disabled": {
+          "seed": 19663043,
+          "mode": "free_for_all",
+          "variant": "ObservedNaruto",
+          "points": 15,
+          "duration": 371.0,
+          "switch": null,
+          "fallbacks": 0,
+          "diagnostics": {
+            "zone_damage": 0,
+            "combat_damage": 4900.200000000001,
+            "blocked_steps": 0,
+            "pressure_s": 0,
+            "shots": 153,
+            "hits": 105,
+            "zone_deaths": 0,
+            "combat_deaths": 0,
+            "timeouts": 0
+          }
+        }
+      }
+    },
+    {
+      "seed": 19663043,
+      "format": "squad",
+      "runs": {
+        "silkpath": {
+          "seed": 19663043,
+          "mode": "squad",
+          "variant": "ObservedNaruto",
+          "points": 5,
+          "duration": 301.8,
+          "switch": null,
+          "fallbacks": 0,
+          "diagnostics": {
+            "zone_damage": 0,
+            "combat_damage": 2195.100000000002,
+            "blocked_steps": 0,
+            "pressure_s": 2.3000000000000007,
+            "shots": 79,
+            "hits": 75,
+            "zone_deaths": 0,
+            "combat_deaths": 1,
+            "timeouts": 0
+          }
+        },
+        "disabled": {
+          "seed": 19663043,
+          "mode": "squad",
+          "variant": "ObservedNaruto",
+          "points": 7,
+          "duration": 113.4,
+          "switch": null,
+          "fallbacks": 0,
+          "diagnostics": {
+            "zone_damage": 0,
+            "combat_damage": 1895.4,
+            "blocked_steps": 0,
+            "pressure_s": 30.800000000000168,
+            "shots": 117,
+            "hits": 84,
+            "zone_deaths": 0,
+            "combat_deaths": 1,
+            "timeouts": 0
+          }
+        }
+      }
+    },
+    {
+      "seed": 19663044,
+      "format": "squad",
+      "runs": {
+        "silkpath": {
+          "seed": 19663044,
+          "mode": "squad",
+          "variant": "ObservedNaruto",
+          "points": 4,
+          "duration": 311.0,
+          "switch": null,
+          "fallbacks": 0,
+          "diagnostics": {
+            "zone_damage": 0,
+            "combat_damage": 2984.6059784520885,
+            "blocked_steps": 1,
+            "pressure_s": 30.600000000000165,
+            "shots": 67,
+            "hits": 46,
+            "zone_deaths": 0,
+            "combat_deaths": 1,
+            "timeouts": 0
+          }
+        },
+        "disabled": {
+          "seed": 19663044,
+          "mode": "squad",
+          "variant": "ObservedNaruto",
+          "points": 4,
+          "duration": 311.0,
+          "switch": null,
+          "fallbacks": 0,
+          "diagnostics": {
+            "zone_damage": 0,
+            "combat_damage": 2984.6059784520885,
+            "blocked_steps": 1,
+            "pressure_s": 30.600000000000165,
+            "shots": 67,
+            "hits": 46,
+            "zone_deaths": 0,
+            "combat_deaths": 1,
+            "timeouts": 0
+          }
+        }
+      }
+    }
+  ]
+}
