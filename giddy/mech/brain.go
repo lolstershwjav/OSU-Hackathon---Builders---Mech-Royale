@@ -3,7 +3,10 @@ package mech
 import (
 	"math"
 	"math/rand"
+	"os"
 	"sort"
+	"strconv"
+	"strings"
 )
 
 const lat = 0.075
@@ -96,53 +99,79 @@ type Brain struct {
 	otherDead          int
 	stickID            int
 	stickAt, loseAt    float64
+	myHitAt            map[int]float64
 }
 
 type Params struct {
-	RetreatHP  float64
-	RecoverHP  float64
-	GunRange   float64
-	LightRange float64
-	LaserRange float64
-	EngageDist float64
-	FarmNPC    bool
-	Explore    bool
-	Ghost      bool
-	HomeExpo   float64
-	LootRadius float64
-	CrateUntil float64
-	UseDrops   bool
-	Dodge      bool
-	NoMortar   bool
-	Peek       bool
-	LaserFirst bool
-	CrowdHide  bool
-	Vulture    float64
-	Ambush     float64
-	LaserSeek  float64
-	Lethal     bool
-	Alert      float64
-	Shy        float64
-	EarlyHide  float64
-	Evade      bool
-	Odds       float64
-	OddsFlee   float64
-	Practice   bool
-	Stick      float64
-	HPw        float64
-	LowBonus   float64
-	MaxTarget  float64
-	LoseRule   bool
-	FightLoot  float64
-	FarmHP     float64
-	AllFoes    bool
-	CubeGoal   float64
-	Econ       bool
-	LaserUp    bool
-	EconSafe   float64
-	Opening    bool
-	NanoUp     bool
-	Finish     float64
+	RetreatHP   float64
+	RecoverHP   float64
+	GunRange    float64
+	LightRange  float64
+	LaserRange  float64
+	EngageDist  float64
+	FarmNPC     bool
+	Explore     bool
+	Ghost       bool
+	HomeExpo    float64
+	LootRadius  float64
+	CrateUntil  float64
+	UseDrops    bool
+	Dodge       bool
+	NoMortar    bool
+	Peek        bool
+	LaserFirst  bool
+	CrowdHide   bool
+	Vulture     float64
+	Ambush      float64
+	LaserSeek   float64
+	Lethal      bool
+	Alert       float64
+	Shy         float64
+	EarlyHide   float64
+	Evade       bool
+	Odds        float64
+	OddsFlee    float64
+	Practice    bool
+	Stick       float64
+	HPw         float64
+	LowBonus    float64
+	MaxTarget   float64
+	LoseRule    bool
+	FightLoot   float64
+	FarmHP      float64
+	AllFoes     bool
+	CubeGoal    float64
+	Econ        bool
+	LaserUp     bool
+	EconSafe    float64
+	Opening     bool
+	NanoUp      bool
+	Finish      float64
+	FinishHP    float64
+	FinishRush  bool
+	Pursue      float64
+	FightBoost  float64
+	DodgeBoost  float64
+	ThreatBoost float64
+	SpeedUp     bool
+	Backstab    float64
+	LethalK     float64
+	// Our additions (FFA end game). LateR: next-circle radius at or below which the bot stops retreating
+	// (giddy: 70). HoldOut: match time until which, once the next circle is the final one (<= 30 m), a ghost
+	// waits at a hidden spot at least HoldMin m from the final centre instead of walking into the pile-up.
+	LateR   float64
+	HoldOut float64
+	HoldMin float64
+	// FFAMin: deaths we did not cause needed before the bot decides it is not in practice (giddy: 1).
+	FFAMin float64
+	// SqLaserRange / SqFinish: practice-mode overrides for local tests (0 = giddy's 120 / 26).
+	SqLaserRange float64
+	SqFinish     float64
+	// PracAt: match time after which, with no unexplained death yet, practice (squad) params switch on (giddy: 20).
+	PracAt float64
+	// BeamFFA: treat a laser/lightning shot from one mech landing on another mech (not us) that lost HP as proof
+	// of a free-for-all (the practice squad never fights itself), and leave practice mode at once.
+	BeamFFA bool
 }
 
 func DefaultParams() Params {
@@ -150,7 +179,16 @@ func DefaultParams() Params {
 		Ghost: true, HomeExpo: 120, LootRadius: 90, CrateUntil: 150, UseDrops: false, Dodge: true, NoMortar: true,
 		Peek: true, LaserFirst: false, CrowdHide: true, Practice: true}
 
-	p.Opening = true
+	p.LaserFirst = true
+
+	// Our FFA changes (local league, see the vault's experiment note): giddy's practice params switch on at
+	// 20 s unless FFA is detected. Retreat stays allowed until the next circle is <= 25 m,
+	// and the bot can hold outside the final centre until the zone forces it in.
+	p.PracAt = 20
+	p.BeamFFA = true
+	p.LateR = 25
+	p.HoldOut = 368
+	p.HoldMin = 60
 
 	return p
 }
@@ -160,8 +198,13 @@ func NewBrain(h *Hello, w *World) *Brain {
 	if seed == 0 {
 		seed = int64(h.Slot) + 1
 	}
+	if Salt != 0 {
+		seed ^= int64(uint64(Salt) * 0x5851F42D4C957F2D)
+	}
+	p := DefaultParams()
+	applyFlags(&p, os.Getenv("MECH_FLAGS"))
 	return &Brain{
-		W: w, Cfg: h.Config, Slot: h.Slot, rng: rand.New(rand.NewSource(seed)), P: DefaultParams(),
+		W: w, Cfg: h.Config, Slot: h.Slot, rng: rand.New(rand.NewSource(seed)), P: p,
 		tracks: map[int]*Track{}, npcs: map[int]*Track{}, crates: map[int]*known{}, cubes: map[int]*known{},
 		pickups: map[int]*known{}, bad: map[int]float64{}, strafe: 1, lootID: -1, lastHurt: -100, lastThreatAt: -100,
 		holdStart: -1,
@@ -228,6 +271,7 @@ func (b *Brain) observe(o *Obs) {
 	}
 	eye := Vec3{me.Pos[0], me.Pos[1], me.Pos[2] + me.Stats.EyeHeight}
 	muzzle := Vec3{me.Pos[0], me.Pos[1], me.Pos[2] + me.Stats.MuzzleHeight}
+	b.beamCheck(o)
 	for i := range o.Mechs {
 		m := &o.Mechs[i]
 		tab := b.tracks
@@ -315,7 +359,11 @@ func (b *Brain) observe(o *Obs) {
 		b.base, b.baseSet = b.P, true
 		b.startAlive = o.Alive
 	}
-	if b.startAlive-o.Alive-b.kills > 0 {
+	ffaMin := 1
+	if b.P.FFAMin > 1 {
+		ffaMin = int(b.P.FFAMin)
+	}
+	if b.startAlive-o.Alive-b.kills >= ffaMin {
 		b.otherDead++
 	} else {
 		b.otherDead = 0
@@ -323,7 +371,11 @@ func (b *Brain) observe(o *Obs) {
 	if b.otherDead >= 5 {
 		b.notPractice = true
 	}
-	if on := b.base.Practice && !b.notPractice && now > 20; on != b.pracOn {
+	pracAt := 20.0
+	if b.base.PracAt > 0 {
+		pracAt = b.base.PracAt
+	}
+	if on := b.base.Practice && !b.notPractice && now > pracAt; on != b.pracOn {
 		b.pracOn = on
 		b.P = b.base
 		if on {
@@ -448,13 +500,22 @@ var upgradeOrderNano = []string{
 	"mortar_reload", "mortar_splash", "mortar_velocity", "sensors", "jets", "laser_pierce",
 }
 
-func pickUpgrade(of *Offer, laserUp, nanoUp bool) int {
+var upgradeOrderSpeed = []string{
+	"plating", "armor", "servos", "jets", "reactor", "laser_damage", "laser_charge", "nanites", "gun_damage", "gun_rate", "lightning_efficiency", "lightning_range",
+	"gun_mag", "gun_velocity", "gyros", "lightning_chain", "capacitor",
+	"mortar_reload", "mortar_splash", "mortar_velocity", "sensors", "laser_pierce",
+}
+
+func pickUpgrade(of *Offer, laserUp, nanoUp, speedUp bool) int {
 	order := upgradeOrder
 	if laserUp {
 		order = upgradeOrderLaser
 	}
 	if nanoUp {
 		order = upgradeOrderNano
+	}
+	if speedUp {
+		order = upgradeOrderSpeed
 	}
 	best, bestRank := 0, 1<<30
 	for i, c := range of.Choices {
@@ -485,14 +546,18 @@ func (b *Brain) step(o *Obs, act *Action) {
 	hpFrac := me.HP / math.Max(1, me.MaxHP)
 
 	if o.Offer != nil && len(o.Offer.Choices) > 0 {
-		p := pickUpgrade(o.Offer, b.P.LaserUp, b.P.NanoUp)
+		p := pickUpgrade(o.Offer, b.P.LaserUp, b.P.NanoUp, b.P.SpeedUp)
 		act.Pick = &p
 	}
 
 	_, gun := hasWeapon(me.Weapons, "gun")
 	_, light := hasWeapon(me.Weapons, "lightning")
 	_, laser := hasWeapon(me.Weapons, "laser")
-	late := z.NextRadius <= 70 || o.Alive <= 3
+	lateR := 70.0
+	if b.P.LateR > 0 {
+		lateR = b.P.LateR
+	}
+	late := z.NextRadius <= lateR || o.Alive <= 3
 
 	var seen []*Track
 	var target, hidden, shy *Track
@@ -566,6 +631,9 @@ func (b *Brain) step(o *Obs, act *Action) {
 		if b.P.Stick > 0 && t.ID == b.stickID && now-b.stickAt < 2 {
 			s -= b.P.Stick
 		}
+		if b.P.Backstab > 0 && b.showsBack(t, x, y) {
+			s -= b.P.Backstab
+		}
 		if now-t.HitMe < 4 {
 			s -= 40
 		}
@@ -581,6 +649,9 @@ func (b *Brain) step(o *Obs, act *Action) {
 	}
 	foe := target
 	if foe == nil && b.P.Peek {
+		foe = hidden
+	}
+	if foe == nil && b.P.Pursue > 0 && hidden != nil && hidden.HP < b.P.Pursue*hidden.MaxHP {
 		foe = hidden
 	}
 	danger := false
@@ -729,10 +800,17 @@ func (b *Brain) step(o *Obs, act *Action) {
 				}
 			}
 		}
-		if keep := b.P; b.P.Finish > 0 && foe.HP < 0.38*foe.MaxHP && hpFrac > 0.42 && crowd <= 2 {
+		finHP := 0.38
+		if b.P.FinishHP > 0 {
+			finHP = b.P.FinishHP
+		}
+		if keep := b.P; b.P.Finish > 0 && foe.HP < finHP*foe.MaxHP && hpFrac > 0.42 && crowd <= 2 {
 			b.P.GunRange, b.P.LaserRange, b.P.LightRange = b.P.Finish, b.P.Finish, b.P.Finish
 			mx, my = b.fightMove(o, foe, seen, wantLos)
 			b.P = keep
+			if b.P.FinishRush && foe.Dist > 2*b.P.Finish && me.Energy > 30 {
+				boost = true
+			}
 		} else {
 			mx, my = b.fightMove(o, foe, seen, wantLos)
 		}
@@ -740,6 +818,9 @@ func (b *Brain) step(o *Obs, act *Action) {
 			boost = true
 		}
 		mode = "fight"
+		if b.P.FightBoost > 0 && me.Energy > b.P.FightBoost && (laser == nil || laser.Charge <= 0) && (light == nil || me.Energy > 60) {
+			boost = true
+		}
 		if b.P.FightLoot > 0 {
 			r := b.P.FightLoot
 			if hpFrac <= 0.5 {
@@ -791,7 +872,7 @@ func (b *Brain) step(o *Obs, act *Action) {
 					mx, my = 0, 0
 				}
 			}
-		} else if zdist > 3 && (!b.P.Ghost || z.NextRadius <= 30) {
+		} else if zdist > 3 && (!b.P.Ghost || (z.NextRadius <= 30 && !b.holdingOut(z, o.Alive))) {
 			mx, my = b.travel(me, zgx, zgy)
 			mode = "zone-walk"
 		} else if b.P.Ghost {
@@ -822,7 +903,13 @@ func (b *Brain) step(o *Obs, act *Action) {
 			if lz && me.Energy > 25 {
 				boost = true
 			}
+			if b.P.DodgeBoost > 0 && me.Energy > b.P.DodgeBoost {
+				boost = true
+			}
 		}
+	}
+	if b.P.ThreatBoost > 0 && me.Energy > b.P.ThreatBoost && (foe != nil || now-b.lastHurt < 2.5) && (light == nil || me.Energy > 60) {
+		boost = true
 	}
 
 	if mode == "escape" {
@@ -965,7 +1052,14 @@ func (b *Brain) step(o *Obs, act *Action) {
 					if holds(target.Weapons, "mortar") {
 						dmg *= 1 + w.Stats.Cookoff
 					}
-					if dmg*0.8 >= target.HP && math.Abs(angDiff(hy, me.Aim[0])) < tolY*0.9 && math.Abs(hp-me.Aim[1]) < tolP {
+					lk := 0.8
+					if b.P.LethalK > 0 {
+						lk = b.P.LethalK
+					}
+					if b.P.Backstab > 0 && b.showsBack(target, x, y) {
+						dmg *= b.rearMult()
+					}
+					if dmg*lk >= target.HP && math.Abs(angDiff(hy, me.Aim[0])) < tolY*0.9 && math.Abs(hp-me.Aim[1]) < tolP {
 						aim = [2]float64{hy, hp}
 						act.Fire[i] = false
 						break
@@ -1769,6 +1863,9 @@ func (b *Brain) homeCost(o *Obs, px, py float64) float64 {
 
 func (b *Brain) home(o *Obs) (float64, float64, bool) {
 	z := &o.Zone
+	if b.holdingOut(z, o.Alive) {
+		return b.holdHome(o)
+	}
 	out := !b.homeSet || hyp(b.homeXY[0]-z.NextCenter[0], b.homeXY[1]-z.NextCenter[1]) > z.NextRadius*0.8
 	if out || b.now-b.homeAt > 12 {
 		b.homeAt = b.now
@@ -1919,7 +2016,23 @@ func squadParams(p Params) Params {
 
 	p.LaserSeek = 240
 	p.LaserUp = true
-	p.Finish = 14
+	p.Lethal = true
+	p.Finish = 20
+	p.Stick = 200
+	p.LowBonus = 200
+	p.LethalK = 0.7
+	p.HPw = 0.15
+	p.HPw = 0.18
+
+	if p.SqLaserRange > 0 {
+		p.LaserRange = p.SqLaserRange
+	}
+	if p.SqFinish > 0 {
+		p.Finish = p.SqFinish
+	}
+	// Keep practice exactly as giddy tuned it: our FFA end-game changes stay off.
+	p.LateR = 70
+	p.HoldOut = 0
 
 	return p
 }
@@ -1930,4 +2043,192 @@ func (b *Brain) cubeCap() int {
 		c = g
 	}
 	return c
+}
+
+func (b *Brain) rearMult() float64 {
+	if m := b.Cfg.Mech.RearMult; m > 1 {
+		return m
+	}
+	return 1
+}
+
+func (b *Brain) showsBack(t *Track, x, y float64) bool {
+	arc := b.Cfg.Mech.FrontArcDeg
+	if arc <= 0 {
+		arc = 180
+	}
+	return math.Abs(angDiff(t.Aim[0], math.Atan2(y-t.Pos[1], x-t.Pos[0]))) > arc*math.Pi/360+0.1
+}
+
+// holdingOut reports whether a ghost should stay away from the final circle's centre for now.
+func (b *Brain) holdingOut(z *Zone, alive int) bool {
+	return b.P.Ghost && b.P.HoldOut > 0 && b.now < b.P.HoldOut && z.NextRadius <= 30 && alive > 2
+}
+
+// holdHome picks a hidden spot inside the current circle, between HoldMin and HoldMin+25 m from the final
+// centre. The normal zone deadline logic (zoneMust) still pulls the bot in before the circle reaches it.
+func (b *Brain) holdHome(o *Obs) (float64, float64, bool) {
+	z := &o.Zone
+	c := b.curZone(z)
+	minD := b.P.HoldMin
+	if minD <= 0 {
+		minD = 40
+	}
+	valid := func(px, py float64) bool {
+		d := hyp(px-z.NextCenter[0], py-z.NextCenter[1])
+		return d >= minD*0.8 && hyp(px-c.X, py-c.Y) <= c.R-12
+	}
+	if !b.homeSet || !valid(b.homeXY[0], b.homeXY[1]) || b.now-b.homeAt > 12 {
+		b.homeAt = b.now
+		best, bestC := [2]float64{}, math.Inf(1)
+		for k := 0; k < 48; k++ {
+			a := b.rng.Float64() * 2 * math.Pi
+			r := minD + b.rng.Float64()*25
+			px, py := z.NextCenter[0]+math.Cos(a)*r, z.NextCenter[1]+math.Sin(a)*r
+			if !valid(px, py) || !b.W.InBounds(px, py) || !b.W.Reachable(px, py) {
+				continue
+			}
+			if cst := b.homeCost(o, px, py) + 0.5*r; cst < bestC {
+				best, bestC = [2]float64{px, py}, cst
+			}
+		}
+		if math.IsInf(bestC, 1) {
+			// No valid spot (circle too small): fall back to giddy's behaviour.
+			return z.NextCenter[0], z.NextCenter[1], true
+		}
+		if !b.homeSet || !valid(b.homeXY[0], b.homeXY[1]) || bestC < b.homeCost(o, b.homeXY[0], b.homeXY[1])+0.5*hyp(b.homeXY[0]-z.NextCenter[0], b.homeXY[1]-z.NextCenter[1])-15 {
+			b.homeXY, b.homeSet = best, true
+		}
+	}
+	return b.homeXY[0], b.homeXY[1], b.homeSet
+}
+
+// applyFlags overrides parameters from a "key=value,key=value" string (env MECH_FLAGS). It is only used
+// by local experiments; with the variable unset the bot runs DefaultParams unchanged. Booleans take 0/1.
+func applyFlags(p *Params, spec string) {
+	for _, kv := range strings.Split(spec, ",") {
+		k, v, ok := strings.Cut(strings.TrimSpace(kv), "=")
+		if !ok {
+			continue
+		}
+		f, err := strconv.ParseFloat(strings.TrimSpace(v), 64)
+		if err != nil {
+			continue
+		}
+		on := f != 0
+		switch strings.ToLower(strings.TrimSpace(k)) {
+		case "later":
+			p.LateR = f
+		case "holdout":
+			p.HoldOut = f
+		case "holdmin":
+			p.HoldMin = f
+		case "lethal":
+			p.Lethal = on
+		case "nanoup":
+			p.NanoUp = on
+		case "laserup":
+			p.LaserUp = on
+		case "vulture":
+			p.Vulture = f
+		case "ambush":
+			p.Ambush = f
+		case "odds":
+			p.Odds = f
+		case "oddsflee":
+			p.OddsFlee = f
+		case "engage":
+			p.EngageDist = f
+		case "retreat":
+			p.RetreatHP = f
+		case "recover":
+			p.RecoverHP = f
+		case "crateuntil":
+			p.CrateUntil = f
+		case "lootradius":
+			p.LootRadius = f
+		case "usedrops":
+			p.UseDrops = on
+		case "practice":
+			p.Practice = on
+		case "laserfirst":
+			p.LaserFirst = on
+		case "ffamin":
+			p.FFAMin = f
+		case "sqlaser":
+			p.SqLaserRange = f
+		case "sqfinish":
+			p.SqFinish = f
+		case "pracat":
+			p.PracAt = f
+		case "beamffa":
+			p.BeamFFA = on
+		case "lethalk":
+			p.LethalK = f
+		case "backstab":
+			p.Backstab = f
+		case "speedup":
+			p.SpeedUp = on
+		case "fightboost":
+			p.FightBoost = f
+		case "dodgeboost":
+			p.DodgeBoost = f
+		case "threatboost":
+			p.ThreatBoost = f
+		}
+	}
+}
+
+// beamCheck latches notPractice when a beam from one mech lands on a different mech that is not us and that
+// lost HP since we last saw it (and not from our own hits). It runs before the tracks are updated, so a track
+// still holds the HP from our previous sighting.
+func (b *Brain) beamCheck(o *Obs) {
+	me := &o.Self
+	if b.myHitAt == nil {
+		b.myHitAt = map[int]float64{}
+	}
+	for _, e := range o.Events {
+		if e.Type == "hit" {
+			b.myHitAt[e.Target] = o.T
+		}
+	}
+	if !b.P.BeamFFA || b.notPractice || len(o.Beams) == 0 {
+		return
+	}
+	myR := b.Cfg.Mech.Radius*b.scaleOf(me.Cubes) + 2
+	for _, bm := range o.Beams {
+		if bm.By == me.ID || len(bm.Path) < 2 {
+			continue
+		}
+		end := bm.Path[1]
+		if bm.Kind == "laser" {
+			end = bm.Path[len(bm.Path)-1]
+		}
+		if hyp(end[0]-me.Pos[0], end[1]-me.Pos[1]) < myR {
+			continue // aimed at us
+		}
+		if st := bm.Path[0]; math.Sqrt((end[0]-st[0])*(end[0]-st[0])+(end[1]-st[1])*(end[1]-st[1])+(end[2]-st[2])*(end[2]-st[2])) < 6 {
+			continue // stopped next to the shooter (a wall), not a fight
+		}
+		for i := range o.Mechs {
+			m := &o.Mechs[i]
+			if m.Kind != "mech" || m.ID == bm.By || m.ID == me.ID {
+				continue
+			}
+			sc := b.scaleOf(m.Cubes)
+			if hyp(end[0]-m.Pos[0], end[1]-m.Pos[1]) > b.Cfg.Mech.Radius*sc+1.5 ||
+				end[2] < m.Pos[2]-1.5 || end[2] > m.Pos[2]+b.Cfg.Mech.Height*sc+1.5 {
+				continue
+			}
+			t := b.tracks[m.ID]
+			if t == nil || o.T-t.Seen > 1.0 || m.HP >= t.HP-1 {
+				continue // must have lost HP since our last sighting
+			}
+			if at, ok := b.myHitAt[m.ID]; ok && o.T-at < 1.0 {
+				continue // we hit it ourselves
+			}
+			b.notPractice = true
+			return
+		}
+	}
 }

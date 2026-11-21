@@ -1,4 +1,4 @@
-"""Naruto uses Sasuke in practice and Sakura after early FFA evidence."""
+"""Naruto delegates to Sasuke with a Sakura fallback and arena overrides."""
 import atexit
 import json
 import os
@@ -28,8 +28,6 @@ class Bob:
         self.escape_goal = None
         self.escape_until = 0.0
         self.escape_retry = 0.0
-        self.previous_alive = None
-        self.unexplained = 0
         self.requests = Queue(maxsize=1)
         self.responses = Queue()
         binary = os.getenv("NARUTO_SASUKE", str(Path(__file__).with_name("sasuke-bin")))
@@ -73,19 +71,11 @@ class Bob:
         return None
 
     def base_action(self, obs):
-        alive = obs["alive"]
-        if self.previous_alive is not None and obs["t"] <= 90:
-            kills = sum(event["type"] == "kill" for event in obs["events"])
-            self.unexplained += max(0, self.previous_alive - alive - kills)
-        self.previous_alive = alive
-        if self.unexplained >= 2:
-            self.close()
         if self.child.poll() is None:
             reply = self.ask(obs, .022, lambda action: action.get("tick") == obs["tick"])
             if reply is not None:
                 return reply
         return self.sakura.act(obs)
-
 
     def act(self, obs):
         action = self.base_action(obs)
