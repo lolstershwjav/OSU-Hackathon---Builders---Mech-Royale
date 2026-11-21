@@ -6,7 +6,7 @@ from pathlib import Path
 import random
 from statistics import mean
 
-from policy import choose, features
+from policy import MODES, choose, features
 
 ROOT = Path(__file__).resolve().parent
 STARTERS = {
@@ -29,6 +29,10 @@ class Mech:
         self.hp = 1.0
         self.last_damage = -20
         self.cubes = 0
+
+    def squared_distance(self, x, y):
+        dx, dy = self.x - x, self.y - y
+        return dx * dx + dy * dy
 
     def distance(self, x, y):
         return math.hypot(self.x - x, self.y - y)
@@ -54,11 +58,11 @@ def match(policies, seed, squad):
                 opponents = [e for e in previous if hunter and not e.slot]
             else:
                 opponents = [e for e in previous if e is not m]
-            visible = sorted((e for e in opponents if m.distance(e.x, e.y) < 180),
-                             key=lambda e: m.distance(e.x, e.y))
-            enemy = visible[0] if visible else None
-            distance = m.distance(enemy.x, enemy.y) if enemy else 999
-            loot = min(cubes, key=lambda p: m.distance(*p), default=None)
+            visible = [(m.squared_distance(e.x, e.y), e) for e in opponents]
+            visible = [(d, e) for d, e in visible if d < 180 ** 2]
+            nearest, enemy = min(visible, key=lambda item: item[0], default=(999 ** 2, None))
+            distance = math.sqrt(nearest)
+            loot = min(cubes, key=lambda p: m.squared_distance(*p), default=None)
             margin = m.distance(*center) - radius
             mode = choose(policies[m.slot], features(
                 m.hp, distance, len(visible), tick - m.last_damage < 4,
@@ -92,7 +96,7 @@ def match(policies, seed, squad):
                 m.last_damage = tick
         for m, x, y in moves:
             m.x, m.y = x, y
-            loot = next((p for p in cubes if m.distance(*p) < 7), None)
+            loot = next((p for p in cubes if m.squared_distance(*p) < 49), None)
             if loot is not None:
                 cubes.remove(loot)
                 m.cubes += 1
@@ -124,7 +128,11 @@ def evaluate(candidate, pool, seeds):
     survival = []
     for seed in seeds:
         rng = random.Random(seed)
-        opponents = [rng.choice(pool) for _ in range(15)]
+        # Every finalist faces a mix of the three families and their starters.
+        opponents = rng.sample(pool, 15) if len(pool) >= 15 else [
+            pool[i % len(pool)] for i in range(15)
+        ]
+        rng.shuffle(opponents)
         slot = rng.randrange(16)
         lineup = opponents[:slot] + [candidate] + opponents[slot:]
         placements, _ = match(lineup, seed, False)
@@ -145,6 +153,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--seed", type=int, default=2027)
     parser.add_argument("--generations", type=int, default=4)
+    parser.add_argument("--resume", type=Path, help="Previous checkpoint to continue")
     parser.add_argument("--output", type=Path, default=ROOT / "models" / "trained.json")
     args = parser.parse_args()
     if args.generations < 1:
@@ -152,16 +161,36 @@ def main():
     rng = random.Random(args.seed)
     archive = list(STARTERS.values())
     current = dict(STARTERS)
+    prior = json.loads(args.resume.read_text(encoding="utf-8")) if args.resume else None
+    incumbent = None
+    if prior:
+        current = {name: prior["policies"][name] for name in STARTERS}
+        incumbent = prior["policies"][prior["champion"]]
+        archive.extend([*current.values(), incumbent])
+    crossover_wins = dict.fromkeys(MODES, 0)
     for generation in range(args.generations):
         seeds = rng.sample(range(10_000, 900_000), 5)
         evolved = {}
         for name, parent in current.items():
+            step = (.15, .30, .55)[generation % 3]
             challengers = [parent] + [
-                [[round(max(-3, min(3, weight + rng.gauss(0, .35))), 4)
+                [[round(max(-3, min(3, weight + rng.gauss(0, step))), 4)
                   for weight in row] for row in parent]
                 for _ in range(3)
             ]
-            evolved[name] = max(challengers, key=lambda w: score(evaluate(w, archive, seeds)))
+            # A row is one mode's scoring rule. Transplant one at a time so a
+            # successful borrowing can be attributed to a specific behavior.
+            donor_name = rng.choice([other for other in current if other != name])
+            mode = rng.randrange(len(MODES))
+            donor = current[donor_name]
+            hybrid = [donor[i] if i == mode else row for i, row in enumerate(parent)]
+            if hybrid not in challengers:
+                challengers.append(hybrid)
+            winner = max(challengers, key=lambda w: score(evaluate(w, archive, seeds)))
+            if winner is hybrid:
+                crossover_wins[MODES[mode]] += 1
+                print(f"{name} retained {donor_name}'s {MODES[mode]} rule", flush=True)
+            evolved[name] = winner
         archive.extend(evolved.values())
         current = evolved
         print(f"Generation {generation + 1}/{args.generations} completed", flush=True)
@@ -170,12 +199,36 @@ def main():
     league = list(STARTERS.values()) + list(current.values())
     candidates = {**current, **{f"{name}_initial": w for name, w in STARTERS.items()}}
     results = {name: evaluate(weights, league, validation) for name, weights in candidates.items()}
-    champion = max(results, key=lambda name: score(results[name]))
-    report = {"seed": args.seed, "generations": args.generations, "validation_seeds": validation,
-              "champion": champion, "policies": candidates, "validation": results}
+    challengers = [name for name, weights in candidates.items() if weights != incumbent]
+    challenger = max(challengers, key=lambda name: score(results[name]))
+    champion = challenger
+    promotion = None
+    if incumbent is not None:
+        gate_seeds = rng.sample(range(2_000_000, 3_000_000), 36)
+        # Match the incumbent and challenger against identical lineups and seeds.
+        baseline = evaluate(incumbent, league, gate_seeds)
+        trial = evaluate(candidates[challenger], league, gate_seeds)
+        promoted = score(trial) > score(baseline) + .10
+        promotion = {"challenger": challenger, "incumbent": prior["champion"],
+                     "incumbent_metrics": baseline, "challenger_metrics": trial,
+                     "promoted": promoted, "seeds": gate_seeds}
+        if not promoted:
+            champion = next((name for name, weights in candidates.items() if weights == incumbent),
+                            "incumbent")
+            candidates[champion] = incumbent
+            if champion == "incumbent":
+                results[champion] = evaluate(incumbent, league, validation)
+    total = args.generations + (prior.get("total_generations", prior["generations"]) if prior else 0)
+    report = {"seed": args.seed, "generations": args.generations, "total_generations": total,
+              "validation_seeds": validation, "champion": champion, "policies": candidates,
+              "validation": results, "promotion": promotion,
+              "crossover_wins": crossover_wins}
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({"champion": champion, "validation": results}, indent=2))
+    temporary = args.output.with_suffix(args.output.suffix + ".tmp")
+    temporary.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    temporary.replace(args.output)
+    print(json.dumps({"champion": champion, "validation": results, "promotion": promotion,
+              "crossover_wins": crossover_wins}, indent=2))
 
 
 if __name__ == "__main__":

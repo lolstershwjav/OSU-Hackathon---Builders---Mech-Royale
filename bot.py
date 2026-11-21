@@ -8,6 +8,7 @@ import mechfight
 from policy import choose, features
 
 ROOT = Path(__file__).resolve().parent
+MAP_CELL = 32
 DIRECTIONS = tuple((math.cos(i * math.tau / 16), math.sin(i * math.tau / 16))
                    for i in range(16)) + ((0.0, 0.0),)
 UPGRADES = ("armor", "hp", "regen", "speed", "energy", "gun_damage", "gun_rate")
@@ -33,14 +34,17 @@ class Bot:
         self.last_position = None
         self.last_move = (0, 0)
         self.blocked = 0
-        self.solids = []
+        self.solids = {}
         map_path = Path(hello["map"]["dir"]) / "v2/world.json"
         if map_path.is_file():
             world = json.loads(map_path.read_text(encoding="utf-8"))
             for prism in world["prisms"]:
                 xs, ys = prism["ring"][::2], prism["ring"][1::2]
-                self.solids.append((min(xs), min(ys), max(xs), max(ys),
-                                    prism["base"], prism["top"]))
+                x0, y0, x1, y1 = min(xs), min(ys), max(xs), max(ys)
+                bounds = (x0, y0, x1, y1, prism["base"], prism["top"])
+                for col in range(math.floor((x0 - 18) / MAP_CELL), math.floor((x1 + 18) / MAP_CELL) + 1):
+                    for row in range(math.floor((y0 - 18) / MAP_CELL), math.floor((y1 + 18) / MAP_CELL) + 1):
+                        self.solids.setdefault((col, row), []).append(bounds)
 
     def movement(self, obs, target, enemy, urgent):
         me = obs["self"]
@@ -50,7 +54,8 @@ class Bot:
         else:
             self.blocked = max(0, self.blocked - 2)
         self.last_position = (x, y)
-        nearby = [p for p in self.solids
+        tile = (math.floor(x / MAP_CELL), math.floor(y / MAP_CELL))
+        nearby = [p for p in self.solids.get(tile, ())
                   if p[0] - 18 < x < p[2] + 18 and p[1] - 18 < y < p[3] + 18
                   and p[4] < z + 8 and p[5] > z + 1.3]
         zone = obs["zone"]
@@ -61,10 +66,12 @@ class Bot:
                 vx, vy, vz = shot["vel"]
                 shots.append((sx, sy, sz, vx, vy, vz, max(1, vx * vx + vy * vy)))
 
+        goal_distance = distance((x, y), target)
+
         def utility(direction):
             dx, dy = direction
             nx, ny = x + dx * 10, y + dy * 10
-            value = distance((x, y), target) - distance((nx, ny), target)
+            value = goal_distance - distance((nx, ny), target)
             edge = distance((nx, ny), zone["center"]) - zone["radius"] + 6
             value -= 2.4 * max(0.0, edge)
             for x0, y0, x1, y1, _, _ in nearby:
@@ -175,11 +182,11 @@ class Bot:
         target_height = 4.5 if "kind" in target else 2.0
         vx, vy, vz = target.get("vel", (0, 0, 0))
         best = None
+        distance_to_target = distance((x, y), (tx, ty))
         for index, weapon in enumerate(me["weapons"]):
             if weapon is None:
                 continue
             kind, stats = weapon["kind"], weapon["stats"]
-            distance_to_target = distance((x, y), (tx, ty))
             rng = stats["range"] if kind != "mortar" else stats["speed"] ** 2 / stats["gravity"]
             travel = distance_to_target / stats["speed"] if kind in ("gun", "mortar") else 0
             dx, dy = tx - x + vx * travel, ty - y + vy * travel
@@ -203,7 +210,7 @@ class Bot:
         _, index, kind, yaw, pitch, can_fire, weapon = best
         action["aim"] = [yaw, pitch]
         error = max(angular_error(me["aim"][0], yaw), abs(me["aim"][1] - pitch))
-        tolerance = max(.027, min(.16, 4 / max(1, distance((x, y), (tx, ty)))))
+        tolerance = max(.027, min(.16, 4 / max(1, distance_to_target)))
         if kind == "laser":
             charge = weapon.get("charge", 0)
             action["fire"][index] = bool(can_fire and (charge < weapon["stats"]["charge"]

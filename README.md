@@ -40,17 +40,31 @@ python3 check/check.py --map-dir /arena -- docker run --rm -i \
 
 Submit this public repository URL and the desired commit SHA on the Mech Royale track page. The official replay check validates message timing and formatting. The track's 48-match practice run measures official placement.
 
+## Overnight training
+
+Resume from the latest checkpoint with a new seed:
+
+```sh
+python3 train.py --resume models/trained.json --seed 20261121 --generations 14
+```
+
+Every generation tests mutations at one of three scales and tries borrowing one tactical scoring rule from another family. The borrowed rule survives only when its hybrid wins that family's evaluation. Validation uses mixed lineups and a common seed set. The leading candidate then faces the previous default on 36 separate seeds with identical opponent lineups and spawn slots in each comparison. Promotion requires a gain greater than 0.10 on the combined metric. The checkpoint records both sides of the comparison, the number of crossover wins by tactical mode, and the cumulative generation count.
+
+A spatial index now limits obstacle checks to relevant map cells and the controller reuses distance calculations within a decision. With identical model weights, all 300 replay actions matched the previous controller. Median in-process time was 0.0281 ms per observation, down from 0.0458 ms across 15 runs per controller. Host measurements exclude process I/O and official container scheduling.
+
 ## Latest run
 
-Seed 2027, six local CPU generations, 18 validation matches per format for each candidate. Placement is mean `16 - place`.
+28 cumulative generations. The five-generation crossover batch kept Guardian’s scavenge and evade rules in Duelist during training. Each policy below was evaluated in 18 matches per format.
 
-| Policy | Free-for-all | Squad | Squad survival rounds |
+| Policy | Free-for-all placement points | Squad placement points | Squad survival rounds |
 | --- | ---: | ---: | ---: |
-| guardian_initial | 10.72 | 0.17 | 37.33 |
-| scavenger | 8.78 | 0.11 | 35.56 |
-| scavenger_initial | 8.17 | 0.28 | 36.44 |
-| guardian | 7.06 | 0.33 | 35.72 |
-| duelist | 6.67 | 0.17 | 36.33 |
-| duelist_initial | 5.83 | 0.17 | 35.28 |
+| guardian | 8.39 | 0.50 | 43.11 |
+| scavenger | 5.72 | 0.17 | 40.17 |
+| duelist | 8.33 | 0.50 | 43.11 |
+| guardian_initial | 8.22 | 0.22 | 43.22 |
+| scavenger_initial | 8.06 | 0.50 | 43.89 |
+| duelist_initial | 4.78 | 0.67 | 40.78 |
 
-`guardian_initial` had the highest combined validation score and is the default. Evolved Guardian had the highest squad placement. The official host replay passed 300/300 observations with zero late responses. Docker and official scored matches remain unverified.
+Default after the paired promotion test: `guardian_initial`. The challenger was `guardian`. Paired metrics are in the checkpoint. These are local simulator placement scores.
+
+The current default passed the official host replay checker with 300/300 on-time responses. Docker and official scored matches remain unverified.
