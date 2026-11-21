@@ -2,11 +2,15 @@
 
 A placement-first Python bot for the 16-mech Builders Mech Royale. It uses a trained tactical model to choose when to evade, scavenge, engage, or hold. An independent rule-based controller turns that choice into movement, aiming, firing, and upgrade decisions. It also handles urgent zone re-entry and low-health retreat.
 
+## Competition runtime
+
+The root Dockerfile runs the restored Naruto runtime from `17a56d2cf6851a7e146ce4ddaf1ebce2c10321d7`. The image starts `bob_mix.py` as uid 65534 and includes its Go practice driver and Python handoff controller. The training checkpoints under `models/` are preserved for simulator work.
+
 ## What each file does
 
 | File | Purpose |
 | --- | --- |
-| `Dockerfile` | Root competition entry point. Starts the bot as uid 65534 using a pinned Python patch version and standard-library dependencies only. |
+| `Dockerfile` | Builds the Go practice driver and starts the Python Naruto wrapper as uid 65534. |
 | `bot.py` | Loads tactical weights, chooses objectives, and handles local movement and combat. |
 | `navigation.py` | Reads the official arena, caches traversable surfaces and edges, and plans routes with bounded A*. |
 | `check_navigation.py` | Checks geometry and benchmarks a blocked route on the official arena. |
@@ -202,7 +206,7 @@ This update archives 18 distinct policy matrices. On the paired fast simulator p
 
 The format-adaptive controller scored 2.33 squad and 2.33 free-for-all in the paired map-backed benchmark, compared with 2.67 and 6.67 for the baseline across three seeds at 0.1-second decisions. The controller failed the paired gate. This benchmark uses the original Python controller and is separate from the Naruto handoff comparison.
 
-The official kit replay of the repository's current Docker entrypoint failed before `ready`. The command invokes the `mechfight` library as a CLI, so it exits before starting the controller. This checkpoint is a simulator training artifact and requires a working match entrypoint and a successful kit replay before manual testing.
+The official kit replay of the generation 3276 Docker entrypoint failed before `ready`. The command invokes the `mechfight` library as a CLI, so it exits before starting the controller. This checkpoint is a simulator training artifact and requires a working match entrypoint and a successful kit replay before manual testing.
 
 ### Generation 3304 checkpoint
 

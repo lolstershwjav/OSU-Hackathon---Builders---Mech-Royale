@@ -1,45 +1,12 @@
-# Multi-stage build: compile Naruto practice driver, then copy Python runtime
-FROM golang:1.21-alpine AS naruto-builder
-
-WORKDIR /build/naruto
-COPY naruto/go.mod naruto/go.sum* ./
-RUN go mod download
-
-COPY naruto/ ./
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o naruto-bin ./cmd/bot
-
-# Python runtime stage
-FROM python:3.11-slim
-
-WORKDIR /app
-
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy Naruto binary
-COPY --from=naruto-builder /build/naruto/naruto-bin /app/naruto-bin
-
-# Copy Python bot files
-COPY bob_mix_improved.py /app/
-COPY tsunade.py /app/
-COPY lance_bot.py /app/
-COPY navigation.py /app/
-COPY policy.py /app/
-COPY mechfight.py /app/
-COPY bot.py /app/
-COPY train.py /app/
-COPY arena_sim.py /app/
-COPY arena_trials.py /app/
-COPY arena_calibrate.py /app/
-
-# Copy model weights
-COPY models/ /app/models/
-
-
-# Ensure Naruto binary is executable
-RUN chmod +x /app/naruto-bin
-
-# Default entrypoint - runs Naruto (bob_mix_improved)
-ENTRYPOINT ["python3", "-m", "mechfight", "run", "--bot", "bob_mix_improved:act"]
+FROM golang:1.26.1-bookworm@sha256:ab3d6955bbc813a0f3fdf220c1d817dd89c0b3f283777db8ece4a32fe7858edd AS build
+WORKDIR /src
+COPY giddy/ ./
+RUN CGO_ENABLED=0 go build -trimpath -o /sasuke ./cmd/bot
+FROM python:3.13.9-slim
+WORKDIR /bot
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+COPY --from=build /sasuke /bot/sasuke-bin
+COPY bob_mix.py madara.py tsunade.py bot.py navigation.py policy.py sakura.py mechfight.py LICENSE-lance ./
+COPY giddy/LICENSE /LICENSE-giddy
+USER 65534:65534
+ENTRYPOINT ["python3", "/bot/bob_mix.py"]
