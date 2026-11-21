@@ -245,8 +245,9 @@ class Navigator:
                            {start: (0.0, 0.0)}, {}, start, zone, threats, now)
             self.retry = now + .8
         start, end, queue, costs, parent, best, route_zone, route_threats, route_time = self.search
-        deadline = perf_counter() + .0025
-        for _ in range(72):
+        fixed_nodes = getattr(self.arena, "simulation_nodes", None)
+        deadline = perf_counter() + .0025 if fixed_nodes is None else float("inf")
+        for _ in range(fixed_nodes or 72):
             if not queue or perf_counter() >= deadline or len(costs) >= 3800:
                 break
             _, cost, node = heapq.heappop(queue)

@@ -171,6 +171,7 @@ def main():
     parser.add_argument("--generations", type=int, default=4)
     parser.add_argument("--resume", type=Path, help="Previous checkpoint to continue")
     parser.add_argument("--output", type=Path, default=ROOT / "models" / "trained.json")
+    parser.add_argument("--arena-kit", type=Path, default=ROOT.parent / "mechfight-kit")
     args = parser.parse_args()
     if args.generations < 1:
         parser.error("--generations must be positive")
@@ -253,7 +254,17 @@ def main():
         promoted = (trial["squad"] > baseline["squad"]
                     and trial["free_for_all"] >= baseline["free_for_all"]
                     and score(trial) > score(baseline) + .10)
-        promotion = {"challenger": challenger, "incumbent": prior["champion"],
+        arena_gate = None
+        if promoted:
+            from arena_trials import compare
+            kit = Path(args.arena_kit)
+            if (kit / "check/stream.jsonl.gz").is_file():
+                arena_gate = compare(kit, incumbent, candidates[challenger], league, args.seed)
+                promoted = arena_gate["passed"]
+            else:
+                promoted = False
+                arena_gate = {"passed": False, "reason": "Arena kit unavailable"}
+        promotion = {"arena_gate": arena_gate, "challenger": challenger, "incumbent": prior["champion"],
                      "incumbent_metrics": baseline, "challenger_metrics": trial,
                      "promoted": promoted, "seeds": gate_seeds}
         if not promoted:

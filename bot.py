@@ -116,6 +116,9 @@ class Bot:
         self.last_move = max(DIRECTIONS, key=utility)
         return list(self.last_move)
 
+    def zone_deadline(self, me, zone, remaining, next_margin):
+        return next_margin < -max(8, remaining * 5)
+
     def act(self, obs):
         me = obs["self"]
         x, y, z = position = me["pos"]
@@ -147,7 +150,7 @@ class Bot:
         if hp < .28:
             mode = "evade"
         urgent = (not me["in_zone"] or zone["radius"] - distance(position, zone["center"]) < 12
-                  or next_margin < -max(8, (zone["shrink_end"] - now) * 5))
+                  or self.zone_deadline(me, zone, zone["shrink_end"] - now, next_margin))
         goal = position
         if urgent or zone["next_radius"] < 18:
             goal = zone["next_center"]

@@ -1,5 +1,6 @@
 """Map-backed sparring with the production bot and approximate match physics."""
 import argparse
+import copy
 from dataclasses import dataclass, field
 import gzip
 import json
@@ -41,6 +42,15 @@ class Mech:
     cubes: int = 0
     vel: tuple = (0, 0, 0)
     events: list = field(default_factory=list)
+    grounded: bool = True
+    vertical_speed: float = 0
+    secondary: str | None = None
+    secondary_ready: float = 0
+    charge: float = 0
+    stats: dict = field(default_factory=dict)
+    weapon_stats: dict = field(default_factory=dict)
+    upgrade_counts: dict = field(default_factory=dict)
+    offers: list = field(default_factory=list)
     diagnostics: dict = field(default_factory=lambda: dict.fromkeys(REASONS, 0))
 
 
@@ -52,10 +62,12 @@ class Projectile:
     vel: tuple
     damage: float
     remaining: float
+    kind: str = "gun"
 
 
 class Simulator:
-    def __init__(self, kit, step=.5, duration=None):
+    def __init__(self, kit, step=.5, duration=None, controller=Bot):
+        self.controller = controller
         if not math.isfinite(step) or not .1 <= step <= 1:
             raise ValueError("Decision interval must be between 0.1 and 1 second")
         with gzip.open(kit / "check/stream.jsonl.gz", "rt") as stream:
@@ -63,6 +75,7 @@ class Simulator:
         self.hello["map"]["dir"] = str(kit / "arena")
         self.config = self.hello["config"]
         self.arena = Arena(kit / "arena")
+        self.arena.simulation_nodes = 12
         self.mech = self.config["mech"]
         self.gun = self.config["weapons"]["gun"]
         self.shape = Navigator.shape(self.mech)
@@ -139,17 +152,21 @@ class Simulator:
 
     def max_hp(self, mech):
         cfg = self.config["cubes"]
-        return self.mech["hp"] * (1 + min(mech.cubes, cfg["stat_cap"]) * cfg["hp_per_cube"])
+        return mech.stats["hp"] * (1 + min(mech.cubes, cfg["stat_cap"]) * cfg["hp_per_cube"])
 
-    def observation(self, m, visible, cubes, zone, time, alive, shots):
+    def observation(self, m, visible, cubes, zone, time, alive, shots, pickups):
         own = {"id": m.slot, "pos": m.pos, "vel": m.vel, "hp": m.hp, "max_hp": self.max_hp(m),
-               "aim": m.aim, "grounded": True, "energy": m.energy, "stats": self.mech,
+               "aim": m.aim, "grounded": m.grounded, "energy": m.energy, "stats": m.stats,
                "in_zone": distance(m.pos, zone["center"]) <= zone["radius"],
-               "weapons": [{"kind": "gun", "stats": self.gun, "ammo": m.ammo,
-                            "cooldown": max(0, m.ready - time), "reload": max(0, m.reload_at - time)}, None]}
+               "weapons": [{"kind": "gun", "stats": m.weapon_stats["gun"], "ammo": m.ammo,
+                            "cooldown": max(0, m.ready - time), "reload": max(0, m.reload_at - time)},
+                           {"kind": m.secondary, "stats": m.weapon_stats[m.secondary],
+                            "charge": m.charge, "cooldown": max(0, m.secondary_ready - time)}
+                           if m.secondary else None]}
         return {"type": "obs", "tick": round(time * self.config["match"]["tick_hz"]), "t": time,
-                "alive": alive, "self": own, "zone": zone, "offer": None, "crates": [], "pickups": [],
-                "projectiles": [{"id": i, "kind": "gun", "pos": shot.pos, "vel": shot.vel}
+                "alive": alive, "self": own, "zone": zone, "offer": {"choices": m.offers[0]} if m.offers else None, "crates": [],
+                "pickups": [item for item in pickups.values() if distance(m.pos, item["pos"]) < 130],
+                "projectiles": [{"id": i, "kind": shot.kind, "pos": shot.pos, "vel": shot.vel}
                                 for i, shot in enumerate(shots) if shot.source is not m
                                 and distance(m.pos, shot.pos) <= 90],
                 "sounds": [], "beams": [], "drops": [], "events": m.events,
@@ -167,7 +184,7 @@ class Simulator:
                 goal = shared[0] - side * dy * 25, shared[1] + side * dx * 25
             elif profile == "zone":
                 goal = tuple(.65 * a + .35 * b for a, b in zip(shared, zone["next_center"]))
-        waypoint = m.navigator.waypoint(m.pos, goal, self.shape, zone, now, (), True, False)
+        waypoint = m.navigator.waypoint(m.pos, goal, Navigator.shape(m.stats), zone, now, (), m.grounded, False)
         move = unit(waypoint[0] - m.pos[0], waypoint[1] - m.pos[1])
         look = target.pos if target else goal
         dx, dy = look[0] - m.pos[0], look[1] - m.pos[1]
@@ -175,63 +192,182 @@ class Simulator:
         pitch = math.atan2(look[2] - m.pos[2] - 2.5, max(1, math.hypot(dx, dy))) if target else 0
         aim = [yaw, pitch]
         return {"move": move, "aim": aim, "boost": active and m.tier >= 2,
-                "fire": [bool(target and active and angular_error(m.aim[0], yaw) < .20)]}
+                "fire": [bool(target and active and angular_error(m.aim[0], yaw) < .20),
+                         bool(target and active and angular_error(m.aim[0], yaw) < .15
+                              and (m.secondary != "laser" or m.charge < m.weapon_stats["laser"]["charge"]))]}
 
     def move(self, m, action, time):
         dx, dy = action["move"]
-        speed = self.mech["walk_speed"]
-        if action.get("boost") and m.energy >= self.mech["boost_drain"] * self.step:
-            speed = self.mech["boost_speed"]
-            m.energy -= self.mech["boost_drain"] * self.step
-            m.last_boost = time
-        elif time - m.last_boost >= self.mech["energy_regen_delay"]:
-            m.energy = min(self.mech["energy"], m.energy + self.mech["energy_regen"] * self.step)
+        stats = m.stats
+        shape = Navigator.shape(stats)
         before = m.pos
-        if dx or dy:
-            # Try the full movement and axis slides, keeping the walkable floor under the chassis.
-            for mx, my in ((dx, dy), (dx, 0), (0, dy)):
-                if not (mx or my):
-                    continue
-                end = before[0] + mx * speed * self.step, before[1] + my * speed * self.step
-                floors = sorted(self.arena.surfaces(*end), key=lambda z: abs(z - before[2]))
-                pos = next(((*end, z) for z in floors
-                            if self.arena.segment(before, (*end, z), self.shape)), None)
-                if pos:
-                    m.pos = pos
-                    break
-            if m.pos == before:
-                m.diagnostics["blocked_steps"] += 1
+        if action.get("jump") and m.grounded:
+            m.grounded = False
+            m.vertical_speed = stats["jump_speed"]
+        # Integrate jets and landings in short substeps even for coarse search runs.
+        parts = max(1, math.ceil(self.step / .1)) if not m.grounded else 1
+        dt = self.step / parts
+        for _ in range(parts):
+            drain = stats["boost_drain"] if m.grounded else stats["jet_drain"]
+            boosting = action.get("boost") and m.energy >= drain * dt
+            speed = stats["boost_speed"] if boosting and m.grounded else stats["walk_speed"]
+            if m.charge > 0:
+                speed *= .5
+            if boosting:
+                m.energy -= drain * dt
+                m.last_boost = time
+            elif time - m.last_boost >= stats["energy_regen_delay"]:
+                m.energy = min(stats["energy"], m.energy + stats["energy_regen"] * dt)
+            x, y, z = m.pos
+            if not m.grounded:
+                m.vertical_speed = min(stats["max_rise_speed"], m.vertical_speed +
+                                       ((stats["jet_accel"] if boosting else 0) - stats["gravity"]) * dt)
+                new_z = z + m.vertical_speed * dt
+                landings = [h for h in self.arena.surfaces(x, y) if new_z <= h <= z + .02]
+                if landings and m.vertical_speed <= 0:
+                    new_z, m.vertical_speed, m.grounded = max(landings), 0, True
+                if self.arena.clear(x, y, new_z, *shape[:2]):
+                    m.pos = x, y, new_z
+                else:
+                    m.vertical_speed = min(0, m.vertical_speed)
+            if dx or dy:
+                for mx, my in ((dx, dy), (dx, 0), (0, dy)):
+                    if not (mx or my):
+                        continue
+                    end = x + mx * speed * dt, y + my * speed * dt
+                    if not m.grounded:
+                        if self.arena.segment(m.pos, end, shape, airborne=True):
+                            m.pos = (*end, m.pos[2])
+                            break
+                    else:
+                        floors = sorted(self.arena.surfaces(*end), key=lambda h: abs(h - m.pos[2]))
+                        goal = next(((*end, h) for h in floors if self.arena.segment(m.pos, (*end, h), shape)), None)
+                        if goal is not None:
+                            m.pos = goal
+                            break
+        if (dx or dy) and distance(m.pos, before) < .01:
+            m.diagnostics["blocked_steps"] += 1
         m.vel = tuple((a - b) / self.step for a, b in zip(m.pos, before))
         move_angle = action.get("aim", m.aim)
-        for index, rate in enumerate((self.mech["turn_rate"], self.mech["pitch_rate"])):
+        for index, rate in enumerate((stats["turn_rate"], stats["pitch_rate"])):
             change = math.remainder(move_angle[index] - m.aim[index], math.tau)
             max_turn = self.step * rate
             m.aim[index] = math.remainder(m.aim[index] + max(-max_turn, min(max_turn, change)), math.tau)
 
     def fire(self, source, action, rng, time):
+        gun = source.weapon_stats["gun"]
         if source.reload_at and time >= source.reload_at:
-            source.ammo, source.reload_at = self.gun["mag"], 0
+            source.ammo, source.reload_at = gun["mag"], 0
         if source.reload_at:
             return None
-        if not source.ammo or action.get("reload") and source.ammo < self.gun["mag"]:
-            source.reload_at = time + self.gun["reload"]
+        if not source.ammo or action.get("reload") and source.ammo < gun["mag"]:
+            source.reload_at = time + gun["reload"]
             return None
         if time < source.ready or not action["fire"][0]:
             return None
         source.ammo -= 1
-        source.ready = time + self.gun["cooldown"]
+        source.ready = time + gun["cooldown"]
         source.diagnostics["shots"] += 1
-        source.last_damage = time
         yaw, pitch = source.aim
-        spread = math.radians(self.gun["spread_deg"]) * (1 if source.bot else 1.9 - .25 * source.tier)
+        spread = math.radians(gun["spread_deg"]) * (1 if source.bot else 1.9 - .25 * source.tier)
         yaw, pitch = yaw + rng.gauss(0, spread), pitch + rng.gauss(0, spread)
-        speed = self.gun["speed"]
+        speed = gun["speed"]
         velocity = (speed * math.cos(pitch) * math.cos(yaw),
                     speed * math.cos(pitch) * math.sin(yaw), speed * math.sin(pitch))
         cfg = self.config["cubes"]
-        damage = self.gun["damage"] * (1 + cfg["damage_per_cube"] * min(source.cubes, cfg["stat_cap"]))
+        damage = gun["damage"] * (1 + cfg["damage_per_cube"] * min(source.cubes, cfg["stat_cap"]))
         return Projectile(source, self.raised(source.pos, self.mech["muzzle_height"]),
-                          velocity, damage, self.gun["range"] / speed)
+                          velocity, damage, gun["range"] / speed)
+
+    def apply_damage(self, source, target, damage, now, kind):
+        if target.hp <= 0:
+            return
+        bearing = math.atan2(source.pos[1] - target.pos[1], source.pos[0] - target.pos[0])
+        if angular_error(target.aim[0], bearing) > math.radians(target.stats["front_arc_deg"] / 2):
+            damage *= target.stats["rear_mult"]
+        damage *= max(0, 1 - target.stats["armor"])
+        target.hp -= damage
+        target.last_damage = source.last_damage = now
+        target.diagnostics["combat_damage"] += damage
+        target.diagnostics["combat_deaths"] += target.hp <= 0
+        target.events.append({"type": "damaged", "amount": damage, "weapon": kind,
+                              "bearing": bearing, "by": source.slot})
+
+    def secondary_fire(self, source, enemies, trigger, now):
+        kind = source.secondary
+        if not kind or now < source.secondary_ready:
+            return None
+        stats = source.weapon_stats[kind]
+        scale = 1 + self.config["cubes"]["damage_per_cube"] * min(source.cubes, self.config["cubes"]["stat_cap"])
+        yaw, pitch = source.aim
+        origin = self.raised(source.pos, source.stats["muzzle_height"])
+        if kind == "laser":
+            if trigger and source.charge < stats["charge"] + stats["hold_s"]:
+                source.charge += self.step
+                return None
+            if not source.charge:
+                return None
+            fraction = max(stats["min_frac"], min(1, source.charge / stats["charge"]))
+            source.charge = 0
+        elif not trigger:
+            return None
+        elif kind == "lightning" and source.energy < stats["energy"]:
+            return None
+        source.secondary_ready = now + stats["cooldown"]
+        source.diagnostics["shots"] += 1
+        if kind == "mortar":
+            speed = stats["speed"]
+            v = (speed * math.cos(yaw) * math.cos(pitch), speed * math.sin(yaw) * math.cos(pitch),
+                 speed * math.sin(pitch))
+            return Projectile(source, origin, v, stats["damage"] * scale, stats["ttl"], kind)
+        if kind == "lightning":
+            source.energy -= stats["energy"]
+        hit = []
+        for target in sorted(enemies, key=lambda m: distance(m.pos, origin)):
+            d = distance(origin, target.pos)
+            if d > stats["range"] or target.hp <= 0:
+                continue
+            center = self.raised(target.pos, target.stats["height"] / 2)
+            angle = math.atan2(center[1] - origin[1], center[0] - origin[0])
+            elevation = math.atan2(center[2] - origin[2], max(d, .01))
+            tolerance = math.radians(stats["cone_deg"]) if kind == "lightning" else math.atan2(target.stats["radius"], max(d, .01))
+            if angular_error(yaw, angle) > tolerance or not self.line_clear(origin, center):
+                continue
+            if kind == "laser" and abs(pitch - elevation) > math.atan2(target.stats["height"] / 2, max(d, .01)):
+                continue
+            self.apply_damage(source, target, stats["damage"] * scale * (fraction if kind == "laser" else 1), now, kind)
+            hit.append(target)
+            if len(hit) >= (1 + stats["pierce"] if kind == "laser" else 1):
+                break
+        if hit:
+            source.diagnostics["hits"] += 1
+        if kind == "lightning" and hit:
+            for jump in range(stats["chain"]):
+                eligible = [m for m in enemies if m not in hit and m.hp > 0
+                            and distance(m.pos, hit[-1].pos) <= stats["chain_range"]]
+                if not eligible:
+                    break
+                target = min(eligible, key=lambda m: distance(m.pos, hit[-1].pos))
+                self.apply_damage(source, target, stats["damage"] * scale * stats["chain_falloff"] ** (jump + 1), now, kind)
+                hit.append(target)
+        return None
+
+    def blast(self, shot, center, mechs, squad, now):
+        stats = shot.source.weapon_stats["mortar"]
+        hit_enemy = False
+        for m in mechs:
+            if m.hp <= 0 or squad and shot.source.slot and m.slot and m is not shot.source:
+                continue
+            target = self.raised(m.pos, m.stats["height"] / 2)
+            d = math.dist(center, target)
+            if d > stats["splash_radius"] or not self.line_clear(center, target):
+                continue
+            fraction = 1 - (1 - stats["splash_edge"]) * d / stats["splash_radius"]
+            damage = stats["splash"] * fraction * (self.mech["self_damage_mult"] if m is shot.source else 1)
+            self.apply_damage(shot.source, m, damage, now, "mortar")
+            m.energy = max(0, m.energy - stats["drain"] * fraction)
+            hit_enemy |= m is not shot.source
+        return hit_enemy
 
     def advance_shot(self, shot, mechs, previous, now, squad):
         dt = min(self.step, shot.remaining)
@@ -254,23 +390,39 @@ class Simulator:
             tau, _, target = min(impacts)
             impact = x + vx * tau, y + vy * tau, z + vz * tau
             if self.line_clear(shot.pos, impact):
-                bearing = math.atan2(-vy, -vx)
-                damage = shot.damage
-                if angular_error(target.aim[0], bearing) > math.radians(self.mech["front_arc_deg"] / 2):
-                    damage *= self.mech["rear_mult"]
-                target.hp -= damage
-                target.last_damage = now
-                target.diagnostics["combat_damage"] += damage
-                target.diagnostics["combat_deaths"] += target.hp <= 0
+                self.apply_damage(shot.source, target, shot.damage, now, shot.kind)
+                if shot.kind == "mortar":
+                    self.blast(shot, impact, mechs, squad, now)
                 shot.source.diagnostics["hits"] += 1
-                target.events.append({"type": "damaged", "amount": damage, "weapon": "gun",
-                                      "bearing": bearing, "by": shot.source.slot})
             return False
         end = x + vx * dt, y + vy * dt, z + vz * dt
-        if not self.line_clear(shot.pos, end):
+        if shot.kind == "mortar":
+            gravity = shot.source.weapon_stats["mortar"]["gravity"]
+            end = end[0], end[1], end[2] - .5 * gravity * dt * dt
+            shot.vel = vx, vy, vz - gravity * dt
+        if not self.line_clear(shot.pos, end) or end[2] < self.arena.ground(*end[:2]):
+            if shot.kind == "mortar":
+                # Find the last open position on the swept arc chord.
+                low, high = shot.pos, end
+                for _ in range(6):
+                    middle = tuple((a + b) / 2 for a, b in zip(low, high))
+                    if self.line_clear(low, middle) and self.arena.clear(*middle, .01, .01) and middle[2] >= self.arena.ground(*middle[:2]):
+                        low = middle
+                    else:
+                        high = middle
+                shot.source.diagnostics["hits"] += self.blast(shot, low, mechs, squad, now)
             return False
         shot.pos, shot.remaining = end, shot.remaining - dt
         return shot.remaining > 0
+
+    def upgrade(self, mech, choice):
+        old_max = self.max_hp(mech)
+        for effect in choice["effects"]:
+            path = effect["path"].split(".")
+            stats = mech.stats if path[0] == "mech" else mech.weapon_stats[path[1]]
+            stats[path[-1]] = stats[path[-1]] * effect.get("mul", 1) + effect.get("add", 0)
+        mech.hp += self.max_hp(mech) - old_max
+        mech.upgrade_counts[choice["id"]] = mech.upgrade_counts.get(choice["id"], 0) + 1
 
     def match(self, candidate, policy_pool, seed, squad, profile="pursuit"):
         rng = random.Random(seed)
@@ -283,18 +435,26 @@ class Simulator:
         for slot in range(cfg["mechs"]):
             pos = self.open_point(rng, center, radius * cfg["spawn_zone_fraction"],
                                   [m.pos for m in mechs], cfg["spawn_min_separation"] * .75)
-            bot = None if squad and slot != player else Bot(
+            controller = self.controller if slot == player else Bot
+            bot = None if squad and slot != player else controller(
                 self.hello, weights=candidate if slot == player else rng.choice(policy_pool), arena=self.arena)
             tier = next(tiers) if bot is None else 0
             mechs.append(Mech(slot, pos, self.mech["hp"], self.mech["energy"], self.gun["mag"],
                               [rng.uniform(-math.pi, math.pi), 0], bot, tier,
                               Navigator(self.arena) if bot is None else None))
+            mechs[-1].stats = dict(self.mech)
+            mechs[-1].weapon_stats = copy.deepcopy(self.config["weapons"])
         focal = mechs[player]
         cubes = {i: self.open_point(rng, center, radius * .75) for i in range(40)}
         shared, last_seen, phase_index = None, -100, 0
         pending = []
         shot_rng = {m.slot: random.Random(seed * 31 + m.slot) for m in mechs}
         next_cube = len(cubes)
+        loot_rng = random.Random(seed + 230011)
+        loot = self.config["loot"]
+        pickups = {i: {"id": i, "kind": loot_rng.choices(list(loot["weights"]), weights=list(loot["weights"].values()))[0],
+                       "pos": self.open_point(loot_rng, center, radius * .75)}
+                   for i in range(loot["floor_count"])}
         for turn in range(math.ceil(self.duration / self.step)):
             now = turn * self.step
             if phase_index + 1 < len(phases) and now >= phases[phase_index][5]:
@@ -314,11 +474,27 @@ class Simulator:
             previous = {m.slot: m.pos for m in mechs}
             for m in mechs:
                 enemies = visible[m.slot]
-                actions[m.slot] = (m.bot.act(self.observation(m, enemies, cubes, zone, now, len(mechs), pending))
+                actions[m.slot] = (m.bot.act(self.observation(m, enemies, cubes, zone, now, len(mechs), pending, pickups))
                                    if m.bot else self.house(m, enemies[0] if enemies else None, shared,
                                                            zone, now, m.slot in hunters, profile))
                 m.events = []
             for m in mechs:
+                action = actions[m.slot]
+                if m.offers:
+                    choices = m.offers.pop(0)
+                    self.upgrade(m, choices[action.get("pick", 0)])
+                if m.secondary is None:
+                    item = pickups.get(action.get("take"))
+                    if m.bot is None:
+                        item = next((p for p in pickups.values() if distance(m.pos,p["pos"]) <= loot["pickup_radius"]), None)
+                    if item and distance(m.pos, item["pos"]) <= loot["pickup_radius"] and abs(m.pos[2] - item["pos"][2]) <= 4:
+                        m.secondary = item["kind"]
+                        m.secondary_ready = now + loot["equip_s"]
+                        del pickups[item["id"]]
+                enemies = [e for e in mechs if e is not m and (not squad or not m.slot or not e.slot)]
+                projectile = self.secondary_fire(m, enemies, action["fire"][1], now)
+                if projectile:
+                    pending.append(projectile)
                 shot = self.fire(m, actions[m.slot], shot_rng[m.slot], now)
                 if shot:
                     pending.append(shot)
@@ -333,12 +509,18 @@ class Simulator:
                     m.diagnostics["zone_damage"] += damage
                     m.diagnostics["zone_deaths"] += m.hp <= 0
                     m.last_damage = now
-                elif now - m.last_damage > self.mech["regen_delay"]:
-                    m.hp = min(self.max_hp(m), m.hp + self.mech["regen_per_s"] * self.step)
+                elif now - m.last_damage > m.stats["regen_delay"]:
+                    m.hp = min(self.max_hp(m), m.hp + m.stats["regen_per_s"] * self.step)
                 for key, pos in list(cubes.items()):
                     if distance(m.pos, pos) <= self.config["cubes"]["pickup_radius"] and abs(m.pos[2] - pos[2]) <= 4:
                         old_max = self.max_hp(m)
                         m.cubes += 1
+                        if m.cubes in self.config["cubes"]["upgrade_thresholds"]:
+                            choices = [u for u in self.config["upgrades"]
+                                       if m.upgrade_counts.get(u["id"], 0) < u["max"]
+                                       and u.get("requires") in (None, "gun", m.secondary)]
+                            if choices:
+                                m.offers.append(loot_rng.sample(choices, min(3, len(choices))))
                         m.hp += self.max_hp(m) - old_max
                         del cubes[key]
             if focal.hp <= 0:
