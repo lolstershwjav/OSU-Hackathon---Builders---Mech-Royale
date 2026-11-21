@@ -177,3 +177,7 @@ In fast validation, the incumbent led squad with 0.61 mean placement points and 
 Use `arena_trials.py --controller NAME` with a frozen checkpoint and shared seed. The experimental names are `route-timed`, `quiet-recovery`, `goal-braking`, `remembered-cover`, `energy-reserve`, `opening-pursuit`, and `early-loot`. Use 0.5-second decisions to screen and 0.1-second decisions on fresh seeds to confirm. Each paired run records placement, survival time, and simulator damage and movement diagnostics.
 
 Every fourth 14-generation resume batch runs one rotating controller benchmark after saving the weight checkpoint. Format adaptation, health-based recovery, and armed recovery face the saved champion on paired map seeds at 0.1-second decisions. Reports go under `models/controller-trials/`. This comparison can extend batch time and leaves weight promotion to the existing paired gate.
+
+### Generation 3024 checkpoint
+
+The archive preserves 114 distinct matrices first observed after generation 2492. Guardian gained 0.44 free-for-all points but lost 0.08 squad points in paired fast simulation, so Initial Scavenger remained the default. In a separate six-seed map-backed Naruto screen, the no-switch practice driver led free-for-all with 8.83 points. All handoff thresholds tied in squad at 2.83 points. These are simulator scores.
