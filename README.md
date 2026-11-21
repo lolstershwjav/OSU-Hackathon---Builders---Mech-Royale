@@ -171,3 +171,7 @@ Run `python3 arena_trials.py --kit ../mechfight-kit --checkpoint models/trained.
 ### Generation 1974 checkpoint
 
 In fast validation, the incumbent led squad with 0.61 mean placement points and trained Scavenger led free-for-all with 9.50. Over 36 paired promotion seeds, Scavenger scored 0.19 squad and 9.75 free-for-all against the incumbent's 0.50 and 9.58. The squad regression kept the incumbent as the default. The archive covers distinct policy matrices first observed after generation 1820. All placement scores are simulator results.
+
+### Controller trials
+
+Use `arena_trials.py --controller NAME` with a frozen checkpoint and shared seed. The experimental names are `route-timed`, `quiet-recovery`, `goal-braking`, `remembered-cover`, `energy-reserve`, `opening-pursuit`, and `early-loot`. Use 0.5-second decisions to screen and 0.1-second decisions on fresh seeds to confirm. Each paired run records placement, survival time, and simulator damage and movement diagnostics.
