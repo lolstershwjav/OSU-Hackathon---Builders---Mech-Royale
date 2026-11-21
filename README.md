@@ -203,3 +203,9 @@ This update archives 18 distinct policy matrices. On the paired fast simulator p
 The format-adaptive controller scored 2.33 squad and 2.33 free-for-all in the paired map-backed benchmark, compared with 2.67 and 6.67 for the baseline across three seeds at 0.1-second decisions. The controller failed the paired gate. This benchmark uses the original Python controller and is separate from the Naruto handoff comparison.
 
 The official kit replay of the repository's current Docker entrypoint failed before `ready`. The command invokes the `mechfight` library as a CLI, so it exits before starting the controller. This checkpoint is a simulator training artifact and requires a working match entrypoint and a successful kit replay before manual testing.
+
+### Generation 3304 checkpoint
+
+This update archives 6 distinct policy matrices. On the paired fast simulator promotion seeds, Guardian changed squad placement by -0.19 points and free-for-all placement by +1.61 points. The active fast trainer policy is Scavenger Initial.
+
+On the 18-seed fast validation set, Initial Scavenger led squad placement at 0.39 and trained Guardian led free-for-all at 7.78. The interrupted route-timed rotation benchmark tied the baseline on all five recorded squad matches and all four recorded free-for-all matches. The partial run did not clear the paired promotion gate.
