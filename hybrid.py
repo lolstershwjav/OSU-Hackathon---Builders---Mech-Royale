@@ -1,12 +1,12 @@
 """Run Lance in practice and switch to our policy on early FFA evidence."""
 import mechfight
 from ffa import FreeForAll
-from lance_bot import Bot as Lance
+from sakura import Bot as Sakura
 
 
 class Hybrid:
     def __init__(self, hello):
-        self.practice = Lance(hello)
+        self.practice = Sakura(hello)
         self.ffa = FreeForAll(hello)
         self.previous_alive = None
         self.unexplained = 0

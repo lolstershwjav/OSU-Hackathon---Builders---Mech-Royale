@@ -1,4 +1,4 @@
-"""Bob uses Giddy in practice and Lance after early FFA evidence."""
+"""Naruto uses Sasuke in practice and Sakura after early FFA evidence."""
 import atexit
 import json
 import os
@@ -9,7 +9,7 @@ from threading import Thread
 from time import monotonic
 
 import mechfight
-from lance_bot import Bot as Lance
+from sakura import Bot as Sakura
 from madara import duel_action
 from navigation import Arena
 from tsunade import escape_plan
@@ -19,7 +19,7 @@ class Bob:
     name = "Naruto"
 
     def __init__(self, hello):
-        self.lance = Lance(hello)
+        self.sakura = Sakura(hello)
         self.mech_config = hello["config"]["mech"]
         try:
             self.arena = Arena(hello["map"]["dir"])
@@ -32,7 +32,7 @@ class Bob:
         self.unexplained = 0
         self.requests = Queue(maxsize=1)
         self.responses = Queue()
-        binary = os.getenv("BOB_GIDDY", str(Path(__file__).with_name("giddy-bin")))
+        binary = os.getenv("NARUTO_SASUKE", str(Path(__file__).with_name("sasuke-bin")))
         self.child = subprocess.Popen([binary], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
         atexit.register(self.close)
         Thread(target=self.relay, daemon=True).start()
@@ -84,7 +84,7 @@ class Bob:
             reply = self.ask(obs, .022, lambda action: action.get("tick") == obs["tick"])
             if reply is not None:
                 return reply
-        return self.lance.act(obs)
+        return self.sakura.act(obs)
 
 
     def act(self, obs):
