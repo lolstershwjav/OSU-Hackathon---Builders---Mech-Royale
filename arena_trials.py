@@ -166,6 +166,46 @@ class EarlyLoot(Bot):
         return mode
 
 
+class PracticeArming(Bot):
+    """Prioritize a nearby secondary during a quiet opening."""
+    def tactical_mode(self, mode, obs, enemies):
+        me, zone = obs["self"], obs["zone"]
+        if (obs["t"] >= 60 or enemies or obs["t"] - self.last_hit < 5
+                or me["weapons"][1] is not None):
+            return mode
+        if any(item["kind"] in ("laser", "lightning")
+               and distance(me["pos"], item["pos"]) < 45
+               and abs(item["pos"][2] - me["pos"][2]) < 8
+               and distance(item["pos"], zone["next_center"]) < zone["next_radius"] - 20
+               for item in obs["pickups"]):
+            return "scavenge"
+        return mode
+
+
+class FormatAdaptive(PracticeArming):
+    """Use practice priorities until observations suggest other mechs fight."""
+    previous_alive = None
+    last_mech_hit = -float("inf")
+    inferred_ffa = False
+
+    def tactical_mode(self, mode, obs, enemies):
+        now = obs["t"]
+        if any(event["type"] in ("hit", "kill") and 0 <= event.get("target", -1) < 16
+               for event in obs["events"]):
+            self.last_mech_hit = now
+        alive = obs["alive"]
+        if (self.previous_alive is not None and alive < self.previous_alive
+                and now < obs["zone"]["shrink_start"] and now - self.last_mech_hit > 12):
+            self.inferred_ffa = True
+        self.previous_alive = alive
+        if self.inferred_ffa:
+            return mode
+        opening = super().tactical_mode(mode, obs, enemies)
+        if now < 60 and enemies:
+            return "hold" if len(enemies) == 1 and now - self.last_hit > 2 else "evade"
+        return opening
+
+
 CONTROLLERS = {
     "early-rotation": EarlyRotation,
     "pressure-retreat": PressureRetreat,
@@ -177,6 +217,8 @@ CONTROLLERS = {
     "energy-reserve": EnergyReserve,
     "opening-pursuit": OpeningPursuit,
     "early-loot": EarlyLoot,
+    "practice-arming": PracticeArming,
+    "format-adaptive": FormatAdaptive,
 }
 
 def compare(kit, incumbent, challenger, league, seed, controller=Bot, step=.1):
