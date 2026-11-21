@@ -18,6 +18,20 @@ class EarlyRotation(Bot):
                 or super().zone_deadline(me, zone, remaining, next_margin))
 
 
+class PressureRetreat(Bot):
+    retreat_until = 0.0
+
+    def tactical_mode(self, mode, obs, enemies):
+        now = obs["t"]
+        position = obs["self"]["pos"]
+        nearby = sum((enemy["pos"][0] - position[0]) ** 2
+                     + (enemy["pos"][1] - position[1]) ** 2 <= 65 ** 2
+                     and abs(enemy["pos"][2] - position[2]) <= 20 for enemy in enemies)
+        if nearby >= 2 and now - self.last_hit < 1.5:
+            self.retreat_until = now + 3
+        return "evade" if now < self.retreat_until else mode
+
+
 def compare(kit, incumbent, challenger, league, seed, controller=Bot, step=.1):
     simulator = Simulator(kit, step)
     seeds = random.Random(seed).sample(range(10_000_000, 20_000_000), 6)
@@ -50,10 +64,13 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, required=True)
     parser.add_argument("--step", type=float, default=.1)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--controller", choices=("early-rotation", "pressure-retreat"),
+                        default="early-rotation")
     args = parser.parse_args()
     c = json.loads(args.checkpoint.read_text())
     weights = c["policies"][c["champion"]]
     league = [*STARTERS.values(), *(c["policies"][name] for name in STARTERS)]
-    report = compare(args.kit, weights, weights, league, args.seed, EarlyRotation, args.step)
-    report.update(controller="EarlyRotation", checkpoint_seed=c["seed"], seed=args.seed)
+    controller = {"early-rotation": EarlyRotation, "pressure-retreat": PressureRetreat}[args.controller]
+    report = compare(args.kit, weights, weights, league, args.seed, controller, args.step)
+    report.update(controller=controller.__name__, checkpoint_seed=c["seed"], seed=args.seed)
     args.output.write_text(json.dumps(report, indent=2) + "\n")

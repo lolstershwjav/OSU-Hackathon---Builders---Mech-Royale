@@ -163,3 +163,7 @@ Run `python3 tactic_audit.py --audit models/screen-audit.json --kit ../mechfight
 ### Generation 1456 checkpoint
 
 The incumbent led the latest fast validation batch with 0.44 mean squad placement points and 11.17 free-for-all points. In the separate 36-seed promotion check, Initial Guardian gained free-for-all points but fell from 0.61 to 0.14 in squad, so the incumbent retained the default. The historical archive includes the distinct matrices added since generation 1302. These are simulator scores.
+
+### Pressure-triggered retreat experiment
+
+Run `python3 arena_trials.py --kit ../mechfight-kit --checkpoint models/trained.json --seed UNIQUE_INTEGER --controller pressure-retreat --output pressure-retreat.json`. This challenger temporarily chooses evade after recent damage when at least two nearby opponents are visible. The benchmark uses identical weights, opponent pools and map seeds for the baseline and challenger. Zone routing still takes priority. This experimental controller is selected only by the benchmark.

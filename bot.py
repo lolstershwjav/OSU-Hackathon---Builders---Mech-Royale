@@ -119,6 +119,9 @@ class Bot:
     def zone_deadline(self, me, zone, remaining, next_margin):
         return next_margin < -max(8, remaining * 5)
 
+    def tactical_mode(self, mode, obs, enemies):
+        return mode
+
     def act(self, obs):
         me = obs["self"]
         x, y, z = position = me["pos"]
@@ -147,6 +150,7 @@ class Bot:
             distance(position, loot["pos"]) if loot else 999,
             (40 - next_margin) / 60,
         ))
+        mode = self.tactical_mode(mode, obs, enemies)
         if hp < .28:
             mode = "evade"
         urgent = (not me["in_zone"] or zone["radius"] - distance(position, zone["center"]) < 12
