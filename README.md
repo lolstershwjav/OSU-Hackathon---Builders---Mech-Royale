@@ -181,3 +181,7 @@ Every fourth 14-generation resume batch runs one rotating controller benchmark a
 ### Generation 3024 checkpoint
 
 The archive preserves 114 distinct matrices first observed after generation 2492. Guardian gained 0.44 free-for-all points but lost 0.08 squad points in paired fast simulation, so Initial Scavenger remained the default. In a separate six-seed map-backed Naruto screen, the no-switch practice driver led free-for-all with 8.83 points. All handoff thresholds tied in squad at 2.83 points. These are simulator scores.
+
+### Generation 3066 checkpoint
+
+The paired fast simulator gate retained Initial Scavenger. The archived holdout uses three matched map seeds at 0.1-second decisions. The no-switch adapter averaged 5.33 squad and 9.00 free-for-all. The two-elimination handoff averaged 4.67 squad and 6.33 free-for-all. Neither switched in squad, and unequal response-time fallbacks limit interpretation of the squad result. These are simulator findings.

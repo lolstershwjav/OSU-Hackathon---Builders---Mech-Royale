@@ -1,0 +1,114 @@
+{
+  "step_seconds": 0.1,
+  "notes": "Threshold-0 adapter is a no-switch simulation control with the same timeout fallback as threshold 2. Results for exact published runtime may differ.",
+  "matches": [
+    {
+      "seed": 9192601,
+      "squad": true,
+      "threshold": 0,
+      "points": 7,
+      "duration": 236.8,
+      "switch": null,
+      "fallbacks": 0
+    },
+    {
+      "seed": 9192601,
+      "squad": false,
+      "threshold": 0,
+      "points": 15,
+      "duration": 377.6,
+      "switch": null,
+      "fallbacks": 0
+    },
+    {
+      "seed": 9192602,
+      "squad": true,
+      "threshold": 0,
+      "points": 7,
+      "duration": 327.3,
+      "switch": null,
+      "fallbacks": 81
+    },
+    {
+      "seed": 9192602,
+      "squad": false,
+      "threshold": 0,
+      "points": 1,
+      "duration": 26.700000000000003,
+      "switch": null,
+      "fallbacks": 0
+    },
+    {
+      "seed": 9192603,
+      "squad": true,
+      "threshold": 0,
+      "points": 2,
+      "duration": 209.20000000000002,
+      "switch": null,
+      "fallbacks": 85
+    },
+    {
+      "seed": 9192603,
+      "squad": false,
+      "threshold": 0,
+      "points": 11,
+      "duration": 288.0,
+      "switch": null,
+      "fallbacks": 0
+    },
+    {
+      "seed": 9192601,
+      "squad": true,
+      "threshold": 2,
+      "points": 7,
+      "duration": 236.8,
+      "switch": null,
+      "fallbacks": 0
+    },
+    {
+      "seed": 9192601,
+      "squad": false,
+      "threshold": 2,
+      "points": 8,
+      "duration": 216.4,
+      "switch": 25.6,
+      "fallbacks": 0
+    },
+    {
+      "seed": 9192602,
+      "squad": true,
+      "threshold": 2,
+      "points": 5,
+      "duration": 331.20000000000005,
+      "switch": null,
+      "fallbacks": 0
+    },
+    {
+      "seed": 9192602,
+      "squad": false,
+      "threshold": 2,
+      "points": 1,
+      "duration": 26.700000000000003,
+      "switch": null,
+      "fallbacks": 0
+    },
+    {
+      "seed": 9192603,
+      "squad": true,
+      "threshold": 2,
+      "points": 2,
+      "duration": 209.20000000000002,
+      "switch": null,
+      "fallbacks": 158
+    },
+    {
+      "seed": 9192603,
+      "squad": false,
+      "threshold": 2,
+      "points": 10,
+      "duration": 237.9,
+      "switch": 34.7,
+      "fallbacks": 0
+    }
+  ]
+}
