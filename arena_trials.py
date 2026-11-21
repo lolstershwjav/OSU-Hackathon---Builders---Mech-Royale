@@ -206,6 +206,41 @@ class FormatAdaptive(PracticeArming):
         return opening
 
 
+class HealthRecovery(CoverRecovery):
+    recovering = False
+
+    def tactical_mode(self, mode, obs, enemies):
+        me = obs["self"]
+        health = me["hp"] / me["max_hp"]
+        recent_pressure = obs["t"] - self.last_hit < 2
+        if health < .55 and (recent_pressure or len(enemies) >= 2):
+            self.recovering = True
+        elif health >= .80:
+            self.recovering = False
+        self.retreat_until = obs["t"] + 1 if self.recovering else 0
+        return "evade" if self.recovering else mode
+
+    def act(self, obs):
+        action = super().act(obs)
+        if self.recovering and self.waypoint and distance(obs["self"]["pos"], self.waypoint) < 4:
+            action["fire"] = [False, False]
+        return action
+
+
+class ArmedRecovery(HealthRecovery):
+    def recovery_goal(self, obs, threats, goal, urgent):
+        goal = super().recovery_goal(obs, threats, goal, urgent)
+        me, zone = obs["self"], obs["zone"]
+        if urgent or self.recovering or threats or me["weapons"][1] or obs["t"] > 90:
+            return goal
+        weapons = [item["pos"] for item in obs["pickups"]
+                   if item["kind"] in ("laser", "lightning")
+                   and abs(item["pos"][2] - me["pos"][2]) < 5
+                   and distance(me["pos"], item["pos"]) < 50
+                   and distance(item["pos"], zone["next_center"]) < zone["next_radius"] - 20]
+        return min(weapons, key=lambda pos: distance(me["pos"], pos), default=goal)
+
+
 CONTROLLERS = {
     "early-rotation": EarlyRotation,
     "pressure-retreat": PressureRetreat,
@@ -219,6 +254,8 @@ CONTROLLERS = {
     "early-loot": EarlyLoot,
     "practice-arming": PracticeArming,
     "format-adaptive": FormatAdaptive,
+    "health-recovery": HealthRecovery,
+    "armed-recovery": ArmedRecovery,
 }
 
 def compare(kit, incumbent, challenger, league, seed, controller=Bot, step=.1):
