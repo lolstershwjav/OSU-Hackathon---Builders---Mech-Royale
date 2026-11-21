@@ -225,3 +225,9 @@ On 18 fast simulator validation seeds, Initial Duelist led squad at 0.56 and Ini
 This update archives 6 distinct policy matrices. On the paired fast simulator promotion seeds, Guardian changed squad placement by -0.25 points and free-for-all placement by -0.92 points. The active fast trainer policy is Scavenger Initial.
 
 The restored Naruto handoff and its no-switch control tied at 9 squad points and 15 free-for-all points on one fresh map-backed flank seed. Neither variant switched or used a timeout fallback. The free-for-all match did not exercise the handoff trigger.
+
+### Generation 3430 checkpoint
+
+This update archives 6 distinct policy matrices. On the paired fast simulator promotion seeds, Duelist changed squad placement by -0.03 points and free-for-all placement by +0.28 points. The active fast trainer policy is Scavenger Initial.
+
+The Naruto rotation trial compared RUC with the same runtime plus the mapped detour allowance. Squad went from 4.50 to 4.50 across 2 paired seeds. Free-for-all went from 1.00 to 1.00 across 1 paired seeds. See the paired match diagnostics for fallback counts and placement. Both candidates passed the local official-kit replay.

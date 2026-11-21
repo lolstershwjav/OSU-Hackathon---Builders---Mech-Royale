@@ -1,0 +1,158 @@
+{
+  "simulator": "map-backed",
+  "step_s": 0.1,
+  "runtimes": {
+    "baseline": "4ca9d40d785b0d9d1520dfed3163bc21d3bd438d",
+    "rotation": "0d6545a29f3a136ccc20805deef3a206aee4f8c1"
+  },
+  "placement": {
+    "squad": {
+      "baseline": 4.5,
+      "rotation": 4.5,
+      "paired_seeds": 2
+    },
+    "free_for_all": {
+      "baseline": 1,
+      "rotation": 1,
+      "paired_seeds": 1
+    }
+  },
+  "host_replay_p99_ms": {
+    "baseline": 1.4,
+    "rotation": 3.8
+  },
+  "runs": [
+    {
+      "commit": "4ca9d40d785b0d9d1520dfed3163bc21d3bd438d",
+      "controller": "baseline",
+      "seed": 19482417,
+      "mode": "free_for_all",
+      "variant": "ObservedNaruto",
+      "points": 1,
+      "duration": 35.4,
+      "switch": null,
+      "fallbacks": 0,
+      "diagnostics": {
+        "zone_damage": 0,
+        "combat_damage": 2164.92,
+        "blocked_steps": 0,
+        "pressure_s": 0,
+        "shots": 61,
+        "hits": 39,
+        "zone_deaths": 0,
+        "combat_deaths": 1,
+        "timeouts": 0
+      }
+    },
+    {
+      "commit": "4ca9d40d785b0d9d1520dfed3163bc21d3bd438d",
+      "controller": "baseline",
+      "seed": 19482418,
+      "mode": "squad",
+      "variant": "ObservedNaruto",
+      "points": 2,
+      "duration": 347.70000000000005,
+      "switch": null,
+      "fallbacks": 10,
+      "diagnostics": {
+        "zone_damage": 0,
+        "combat_damage": 1937.9552168244809,
+        "blocked_steps": 44,
+        "pressure_s": 1.3,
+        "shots": 18,
+        "hits": 12,
+        "zone_deaths": 0,
+        "combat_deaths": 1,
+        "timeouts": 0
+      }
+    },
+    {
+      "commit": "4ca9d40d785b0d9d1520dfed3163bc21d3bd438d",
+      "controller": "baseline",
+      "seed": 19482417,
+      "mode": "squad",
+      "variant": "ObservedNaruto",
+      "points": 7,
+      "duration": 224.8,
+      "switch": null,
+      "fallbacks": 0,
+      "diagnostics": {
+        "zone_damage": 0,
+        "combat_damage": 4690.296,
+        "blocked_steps": 0,
+        "pressure_s": 22.100000000000044,
+        "shots": 86,
+        "hits": 72,
+        "zone_deaths": 0,
+        "combat_deaths": 1,
+        "timeouts": 0
+      }
+    },
+    {
+      "commit": "0d6545a29f3a136ccc20805deef3a206aee4f8c1",
+      "controller": "rotation",
+      "seed": 19482417,
+      "mode": "free_for_all",
+      "variant": "ObservedNaruto",
+      "points": 1,
+      "duration": 35.4,
+      "switch": null,
+      "fallbacks": 0,
+      "diagnostics": {
+        "zone_damage": 0,
+        "combat_damage": 2164.92,
+        "blocked_steps": 0,
+        "pressure_s": 0,
+        "shots": 61,
+        "hits": 39,
+        "zone_deaths": 0,
+        "combat_deaths": 1,
+        "timeouts": 0
+      }
+    },
+    {
+      "commit": "0d6545a29f3a136ccc20805deef3a206aee4f8c1",
+      "controller": "rotation",
+      "seed": 19482418,
+      "mode": "squad",
+      "variant": "ObservedNaruto",
+      "points": 2,
+      "duration": 348.1,
+      "switch": null,
+      "fallbacks": 8,
+      "diagnostics": {
+        "zone_damage": 0,
+        "combat_damage": 1904.4000000000017,
+        "blocked_steps": 44,
+        "pressure_s": 2.0000000000000004,
+        "shots": 20,
+        "hits": 11,
+        "zone_deaths": 0,
+        "combat_deaths": 1,
+        "timeouts": 0
+      }
+    },
+    {
+      "commit": "0d6545a29f3a136ccc20805deef3a206aee4f8c1",
+      "controller": "rotation",
+      "seed": 19482417,
+      "mode": "squad",
+      "variant": "ObservedNaruto",
+      "points": 7,
+      "duration": 224.8,
+      "switch": null,
+      "fallbacks": 0,
+      "diagnostics": {
+        "zone_damage": 0,
+        "combat_damage": 4690.296,
+        "blocked_steps": 0,
+        "pressure_s": 22.100000000000044,
+        "shots": 86,
+        "hits": 72,
+        "zone_deaths": 0,
+        "combat_deaths": 1,
+        "timeouts": 0
+      }
+    }
+  ]
+}
