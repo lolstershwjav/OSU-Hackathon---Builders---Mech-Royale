@@ -1,0 +1,113 @@
+{
+  "simulator": "map-backed",
+  "decision_interval_seconds": 0.1,
+  "format": "free-for-all",
+  "runs": {
+    "baseline": [
+      {
+        "seed": 8233911,
+        "points": 15,
+        "duration": 361.6,
+        "activations": 0,
+        "diagnostics": {
+          "zone_damage": 0,
+          "combat_damage": 1512.2099999999994,
+          "blocked_steps": 0,
+          "pressure_s": 0,
+          "shots": 150,
+          "hits": 87,
+          "zone_deaths": 0,
+          "combat_deaths": 0,
+          "timeouts": 0
+        }
+      },
+      {
+        "seed": 8233912,
+        "points": 15,
+        "duration": 343.40000000000003,
+        "activations": 0,
+        "diagnostics": {
+          "zone_damage": 0,
+          "combat_damage": 956.5281,
+          "blocked_steps": 0,
+          "pressure_s": 0,
+          "shots": 114,
+          "hits": 45,
+          "zone_deaths": 0,
+          "combat_deaths": 0,
+          "timeouts": 0
+        }
+      },
+      {
+        "seed": 9192601,
+        "points": 15,
+        "duration": 377.6,
+        "activations": 0,
+        "diagnostics": {
+          "zone_damage": 0,
+          "combat_damage": 881.1000000000001,
+          "blocked_steps": 28,
+          "pressure_s": 0,
+          "shots": 72,
+          "hits": 21,
+          "zone_deaths": 0,
+          "combat_deaths": 0,
+          "timeouts": 0
+        }
+      }
+    ],
+    "madara": [
+      {
+        "seed": 8233911,
+        "points": 15,
+        "duration": 361.6,
+        "activations": 0,
+        "diagnostics": {
+          "zone_damage": 0,
+          "combat_damage": 1512.2099999999994,
+          "blocked_steps": 0,
+          "pressure_s": 0,
+          "shots": 150,
+          "hits": 87,
+          "zone_deaths": 0,
+          "combat_deaths": 0,
+          "timeouts": 0
+        }
+      },
+      {
+        "seed": 8233912,
+        "points": 15,
+        "duration": 343.40000000000003,
+        "activations": 0,
+        "diagnostics": {
+          "zone_damage": 0,
+          "combat_damage": 956.5281,
+          "blocked_steps": 0,
+          "pressure_s": 0,
+          "shots": 114,
+          "hits": 45,
+          "zone_deaths": 0,
+          "combat_deaths": 0,
+          "timeouts": 0
+        }
+      },
+      {
+        "seed": 9192601,
+        "points": 15,
+        "duration": 377.6,
+        "activations": 0,
+        "diagnostics": {
+          "zone_damage": 0,
+          "combat_damage": 881.1000000000001,
+          "blocked_steps": 28,
+          "pressure_s": 0,
+          "shots": 72,
+          "hits": 21,
+          "zone_deaths": 0,
+          "combat_deaths": 0,
+          "timeouts": 0
+        }
+      }
+    ]
+  }
+}

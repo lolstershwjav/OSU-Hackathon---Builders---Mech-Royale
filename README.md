@@ -189,3 +189,9 @@ The paired fast simulator gate retained Initial Scavenger. The archived holdout 
 ### Generation 3136 checkpoint
 
 Initial Scavenger retained the default. On paired fast promotion seeds, trained Scavenger gained 1.97 free-for-all points and lost 0.08 squad points. The archive preserves 15 newly observed policy matrices. All scores are from simulation.
+
+### Generation 3192 checkpoint
+
+The archive adds 12 distinct matrices. On 18 fast simulator seeds, trained Scavenger led the trained policies in squad placement (0.67) and Guardian led free-for-all (9.22). On 36 paired promotion seeds, Scavenger gained 1.08 free-for-all points but lost 0.03 squad points against Initial Scavenger. Initial Scavenger remains the default.
+
+Madara's no-switch free-for-all trial used three paired map seeds at 0.1-second decisions. Both variants averaged 15.00 points and had zero timeouts. The override never activated, so the trial establishes no benefit from the override. See `models/naruto-madara-noswitch.json` for the run data.
