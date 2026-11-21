@@ -10,13 +10,24 @@ from time import monotonic
 
 import mechfight
 from lance_bot import Bot as Lance
+from madara import duel_action
+from navigation import Arena
+from tsunade import escape_plan
 
 
 class Bob:
-    name = "Bob"
+    name = "Naruto"
 
     def __init__(self, hello):
         self.lance = Lance(hello)
+        self.mech_config = hello["config"]["mech"]
+        try:
+            self.arena = Arena(hello["map"]["dir"])
+        except (KeyError, OSError, ValueError):
+            self.arena = None
+        self.escape_goal = None
+        self.escape_until = 0.0
+        self.escape_retry = 0.0
         self.previous_alive = None
         self.unexplained = 0
         self.requests = Queue(maxsize=1)
@@ -61,7 +72,7 @@ class Bob:
             pass
         return None
 
-    def act(self, obs):
+    def base_action(self, obs):
         alive = obs["alive"]
         if self.previous_alive is not None and obs["t"] <= 90:
             kills = sum(event["type"] == "kill" for event in obs["events"])
@@ -74,6 +85,28 @@ class Bob:
             if reply is not None:
                 return reply
         return self.lance.act(obs)
+
+
+    def act(self, obs):
+        action = self.base_action(obs)
+        if self.arena is None:
+            return action
+        now = obs["t"]
+        if self.escape_goal is not None and now >= self.escape_until:
+            self.escape_goal = None
+            self.escape_retry = now + 2
+        if now >= self.escape_retry:
+            plan = escape_plan(obs, self.arena, self.mech_config, self.escape_goal)
+            if plan:
+                if self.escape_goal is None:
+                    self.escape_until = now + 8
+                self.escape_goal, escape = plan
+                return {**action, **escape}
+            if self.escape_goal is not None:
+                self.escape_goal = None
+                self.escape_retry = now + 2
+        duel = duel_action(obs, self.arena, self.mech_config)
+        return {"tick": obs["tick"], **duel} if duel is not None else action
 
 
 if __name__ == "__main__":
