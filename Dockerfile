@@ -1,12 +1,12 @@
-# Multi-stage build: compile Giddy Go binary, then copy Python runtime
-FROM golang:1.21-alpine AS giddy-builder
+# Multi-stage build: compile Naruto practice driver, then copy Python runtime
+FROM golang:1.21-alpine AS naruto-builder
 
-WORKDIR /build/giddy
-COPY giddy/go.mod giddy/go.sum* ./
+WORKDIR /build/naruto
+COPY naruto/go.mod naruto/go.sum* ./
 RUN go mod download
 
-COPY giddy/ ./
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o giddy-bin ./cmd/bot
+COPY naruto/ ./
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o naruto-bin ./cmd/bot
 
 # Python runtime stage
 FROM python:3.11-slim
@@ -18,8 +18,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy Giddy binary
-COPY --from=giddy-builder /build/giddy/giddy-bin /app/giddy-bin
+# Copy Naruto binary
+COPY --from=naruto-builder /build/naruto/naruto-bin /app/naruto-bin
 
 # Copy Python bot files
 COPY bob_mix_improved.py /app/
@@ -39,10 +39,10 @@ COPY models/ /app/models/
 
 # Copy licenses
 COPY LICENSE-lance /app/
-COPY LICENSE-giddy /app/
+COPY LICENSE-naruto /app/
 
-# Ensure Giddy binary is executable
-RUN chmod +x /app/giddy-bin
+# Ensure Naruto binary is executable
+RUN chmod +x /app/naruto-bin
 
 # Default entrypoint - runs Naruto (bob_mix_improved)
 ENTRYPOINT ["python3", "-m", "mechfight", "run", "--bot", "bob_mix_improved:act"]

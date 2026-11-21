@@ -62,7 +62,7 @@ def test_naruto_instantiation():
         from bob_mix_improved import Naruto
         naruto = Naruto()
         print("  ✓ Naruto() created")
-        print(f"    Giddy process: {naruto.giddy_process is not None}")
+        print(f"    Naruto practice driver: {naruto.naruto_process is not None}")
         print(f"    Tsunade ready: {naruto.tsunade_initialized}")
         return True
     except Exception as e:

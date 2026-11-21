@@ -3,7 +3,7 @@
 Naruto - Hybrid practice/FFA bot with fixed handoff logic.
 
 Architecture:
-- Uses Giddy (Go binary) for squad practice until FFA detected
+- Uses Naruto practice driver (Go binary) for squad practice until FFA detected
 - Switches to Tsunade (Python FFA brain) when FFA conditions met
 - Stricter detection: 3+ unexplained deaths + spatial clustering + combat sounds
 """
@@ -24,7 +24,7 @@ FFA_TIME_WINDOW = float(os.environ.get("NARUTO_FFA_WINDOW", "90.0"))
 FFA_CLUSTER_RADIUS = float(os.environ.get("NARUTO_FFA_CLUSTER", "120.0"))
 FFA_REQUIRE_SOUND = os.environ.get("NARUTO_FFA_SOUND", "true").lower() == "true"
 DEBUG = os.environ.get("NARUTO_DEBUG", "false").lower() == "true"
-GIDDY_TIMEOUT_MS = int(os.environ.get("NARUTO_GIDDY_TIMEOUT", "22"))
+NARUTO_TIMEOUT_MS = int(os.environ.get("NARUTO_TIMEOUT", "22"))
 
 # Sound types that indicate combat
 COMBAT_SOUNDS = {"gun", "laser", "lightning", "mortar", "shotgun", "railgun", "plasma"}
@@ -40,7 +40,7 @@ class DeathEvent:
 
 class Naruto:
     """
-    Hybrid bot: Giddy for practice -> Tsunade for FFA.
+    Hybrid bot: Naruto practice driver -> Tsunade for FFA.
 
     Handoff triggers when ALL conditions met:
     1. >= FFA_DEATHS_THRESHOLD unexplained deaths in FFA_TIME_WINDOW seconds
@@ -49,7 +49,7 @@ class Naruto:
     """
 
     def __init__(self):
-        self.giddy_process: Optional[subprocess.Popen] = None
+        self.naruto_process: Optional[subprocess.Popen] = None
         self.tsunade = None  # Lazy init
         self.tsunade_initialized = False
 
@@ -62,31 +62,31 @@ class Naruto:
         self.switch_reason = ""
         self.switch_tick = -1
 
-        # Giddy communication
-        self.giddy_lock = threading.Lock()
-        self.giddy_ready = threading.Event()
-        self.giddy_response = None
-        self.giddy_error = None
+        # Naruto practice driver communication
+        self.naruto_lock = threading.Lock()
+        self.naruto_ready = threading.Event()
+        self.naruto_response = None
+        self.naruto_error = None
 
-        # Start Giddy
-        self._start_giddy()
+        # Start Naruto practice driver
+        self._start_naruto()
 
-    def _start_giddy(self):
-        """Launch Giddy Go binary as child process."""
-        giddy_path = "/app/giddy-bin"
-        if not os.path.exists(giddy_path):
+    def _start_naruto(self):
+        """Launch Naruto practice driver Go binary as child process."""
+        naruto_path = "/app/naruto-bin"
+        if not os.path.exists(naruto_path):
             # Fallback for local testing
-            giddy_path = "./giddy-bin"
+            naruto_path = "./naruto-bin"
 
-        if not os.path.exists(giddy_path):
+        if not os.path.exists(naruto_path):
             if DEBUG:
-                print(f"[Naruto] Giddy binary not found at {giddy_path}", file=sys.stderr, flush=True)
-            self.giddy_process = None
+                print(f"[Naruto] Practice driver binary not found at {naruto_path}", file=sys.stderr, flush=True)
+            self.naruto_process = None
             return
 
         try:
-            self.giddy_process = subprocess.Popen(
-                [giddy_path],
+            self.naruto_process = subprocess.Popen(
+                [naruto_path],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -94,11 +94,11 @@ class Naruto:
                 bufsize=1
             )
             if DEBUG:
-                print(f"[Naruto] Started Giddy (PID: {self.giddy_process.pid})", file=sys.stderr, flush=True)
+                print(f"[Naruto] Started practice driver (PID: {self.naruto_process.pid})", file=sys.stderr, flush=True)
         except Exception as e:
             if DEBUG:
-                print(f"[Naruto] Failed to start Giddy: {e}", file=sys.stderr, flush=True)
-            self.giddy_process = None
+                print(f"[Naruto] Failed to start practice driver: {e}", file=sys.stderr, flush=True)
+            self.naruto_process = None
 
     def _lazy_init_tsunade(self):
         """Import and initialize Tsunade only when needed."""
@@ -115,32 +115,32 @@ class Naruto:
                 print(f"[Naruto] Failed to init Tsunade: {e}", file=sys.stderr, flush=True)
             self.tsunade = None
 
-    def _send_to_giddy(self, obs: dict) -> Optional[dict]:
+    def _send_to_naruto(self, obs: dict) -> Optional[dict]:
         """Send observation to Giddy, return action or None on failure."""
-        if not self.giddy_process or self.giddy_process.poll() is not None:
+        if not self.naruto_process or self.naruto_process.poll() is not None:
             return None
 
         try:
             # Send observation
-            self.giddy_process.stdin.write(json.dumps(obs) + "\n")
-            self.giddy_process.stdin.flush()
+            self.naruto_process.stdin.write(json.dumps(obs) + "\n")
+            self.naruto_process.stdin.flush()
 
             # Read response with timeout
             import select
-            ready, _, _ = select.select([self.giddy_process.stdout], [], [], GIDDY_TIMEOUT_MS / 1000.0)
+            ready, _, _ = select.select([self.naruto_process.stdout], [], [], NARUTO_TIMEOUT_MS / 1000.0)
             if not ready:
                 if DEBUG:
-                    print(f"[Naruto] Giddy timeout ({GIDDY_TIMEOUT_MS}ms)", file=sys.stderr, flush=True)
+                    print(f"[Naruto] Practice driver timeout ({NARUTO_TIMEOUT_MS}ms)", file=sys.stderr, flush=True)
                 return None
 
-            line = self.giddy_process.stdout.readline()
+            line = self.naruto_process.stdout.readline()
             if not line:
                 return None
 
             return json.loads(line.strip())
         except (json.JSONDecodeError, BrokenPipeError, OSError) as e:
             if DEBUG:
-                print(f"[Naruto] Giddy comm error: {e}", file=sys.stderr, flush=True)
+                print(f"[Naruto] Practice driver comm error: {e}", file=sys.stderr, flush=True)
             return None
 
     def _detect_combat_sounds(self, obs: dict) -> int:
@@ -257,19 +257,19 @@ class Naruto:
         if self.switched:
             return self._act_tsunade(obs)
         else:
-            return self._act_giddy(obs)
+            return self._act_naruto(obs)
 
-    def _act_giddy(self, obs: dict) -> dict:
-        """Get action from Giddy."""
-        action = self._send_to_giddy(obs)
+    def _act_naruto(self, obs: dict) -> dict:
+        """Get action from Naruto practice driver."""
+        action = self._send_to_naruto(obs)
         if action is not None:
             return action
 
         # Giddy failed - fallback to Tsunade
         if DEBUG:
-            print(f"[Naruto] Giddy failed, falling back to Tsunade", file=sys.stderr, flush=True)
+            print(f"[Naruto] Practice driver failed, falling back to Tsunade", file=sys.stderr, flush=True)
         self.switched = True
-        self.switch_reason = "giddy_failed"
+        self.switch_reason = "practice_driver_failed"
         return self._act_tsunade(obs)
 
     def _act_tsunade(self, obs: dict) -> dict:
@@ -300,7 +300,7 @@ class Naruto:
             "switch_reason": self.switch_reason,
             "deaths_in_window": len(self.death_events),
             "combat_sounds": self.combat_sounds_recent,
-            "giddy_alive": self.giddy_process is not None and self.giddy_process.poll() is None,
+            "naruto_alive": self.naruto_process is not None and self.naruto_process.poll() is None,
             "tsunade_ready": self.tsunade_initialized
         }
 
