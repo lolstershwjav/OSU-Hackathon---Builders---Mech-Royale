@@ -230,4 +230,4 @@ The restored Naruto handoff and its no-switch control tied at 9 squad points and
 
 This update archives 6 distinct policy matrices. On the paired fast simulator promotion seeds, Duelist changed squad placement by -0.03 points and free-for-all placement by +0.28 points. The active fast trainer policy is Scavenger Initial.
 
-The Naruto rotation trial compared RUC with the same runtime plus the mapped detour allowance. Squad went from 4.50 to 4.50 across 2 paired seeds. Free-for-all went from 1.00 to 1.00 across 1 paired seeds. See the paired match diagnostics for fallback counts and placement. Both candidates passed the local official-kit replay.
+The Naruto rotation trial compared RUC with the same runtime plus the mapped detour allowance. Squad went from 4.50 to 4.50 across 2 paired seeds. Free-for-all went from 5.50 to 6.00 across two paired seeds. The second free-for-all seed had four response fallbacks for RUC and two for rotation, which limits attribution of the placement gain. See the paired match diagnostics for fallback counts and placement. Both candidates passed the local official-kit replay.
