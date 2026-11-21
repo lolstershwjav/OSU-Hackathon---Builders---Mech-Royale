@@ -577,6 +577,44 @@ func (b *Brain) step(o *Obs, act *Action) {
 
 	if o.Offer != nil && len(o.Offer.Choices) > 0 {
 		p := pickUpgrade(o.Offer, b.P.LaserUp, b.P.NanoUp, b.P.SpeedUp)
+		if !b.notPractice && len(me.Upgrades) == 0 && o.Offer.Choices[p].ID == "nanites" {
+			desired := ""
+			for _, enemy := range o.Mechs {
+				if enemy.Kind == "mech" && hyp(enemy.Pos[0]-x, enemy.Pos[1]-y) <= 6 {
+					desired = "gyros"
+					break
+				}
+			}
+			if now <= 3 && hpFrac >= 0.98 && len(o.Mechs) == 0 {
+				desired = "servos"
+			}
+			for i, choice := range o.Offer.Choices {
+				if choice.ID == desired {
+					p = i
+					break
+				}
+			}
+		}
+		if !b.notPractice && len(me.Upgrades) == 1 && hpFrac >= 0.98 && len(o.Mechs) == 0 {
+			_, laser := hasWeapon(me.Weapons, "laser")
+			preferred := ""
+			if laser != nil {
+				switch o.Offer.Choices[p].ID {
+				case "armor":
+					preferred = "laser_damage"
+				case "nanites":
+					preferred = "gun_damage"
+				}
+			}
+			if preferred != "" {
+				for i, choice := range o.Offer.Choices {
+					if choice.ID == preferred {
+						p = i
+						break
+					}
+				}
+			}
+		}
 		act.Pick = &p
 	}
 
@@ -770,6 +808,16 @@ func (b *Brain) step(o *Obs, act *Action) {
 	zoneMust := !me.InZone || now+tNeed+3 >= deadline
 	zoneShould := now+tNeed+14 >= deadline
 
+	canFinishUnderCrossfire := false
+	if len(crossfire) == 2 && target != nil && target.LOS && hpFrac >= 0.42 &&
+		target.HP <= 0.25*target.MaxHP {
+		gunReady := gun != nil && gun.Ammo > 0 && gun.Reload <= 0.15 && gun.Cooldown <= 0.2 &&
+			target.Dist <= gun.Stats.Range-10
+		laserReady := laser != nil && laser.Charge >= laser.Stats.Charge-0.05 &&
+			target.Dist <= laser.Stats.Range*0.97
+		canFinishUnderCrossfire = gunReady || laserReady
+	}
+
 	escJump := false
 	switch {
 	case b.escape(me, &mx, &my, &boost, &escJump):
@@ -784,7 +832,7 @@ func (b *Brain) step(o *Obs, act *Action) {
 		mx, my = b.travel(me, zgx, zgy)
 		boost = (!me.InZone || now+tNeed >= deadline) && me.Energy > 5
 		mode = "zone"
-	case len(crossfire) >= 2 && !late && b.coverMove(o, crossfire, &mx, &my):
+	case len(crossfire) >= 2 && !canFinishUnderCrossfire && !late && b.coverMove(o, crossfire, &mx, &my):
 		// RUC breaks multiple firing lanes before resuming normal combat.
 		boost = me.Energy > 10 && (mx != 0 || my != 0)
 		mode = "ruc"
@@ -1185,7 +1233,9 @@ func (b *Brain) step(o *Obs, act *Action) {
 	act.Aim = &aim
 
 	if gun != nil && gun.Reload <= 0 && gun.Ammo < gun.Stats.Mag {
-		if target == nil && farm == nil && farmPos == nil && (gun.Ammo <= gun.Stats.Mag*0.6 || now-b.lastThreatAt > 3) {
+		holdReload := mode == "post-kill-hold"
+		if target == nil && farm == nil && farmPos == nil &&
+			(holdReload || gun.Ammo <= gun.Stats.Mag*0.6 || now-b.lastThreatAt > 3) {
 			act.Reload = true
 		}
 	}
