@@ -96,3 +96,7 @@ At 42 cumulative generations, the default policy is `guardian_initial`. On the l
 ### Generation 252 checkpoint
 
 The latest simulator batch favored Initial Duelist in squad play (0.72 points) and Evolved Scavenger in free-for-all (8.78). Evolved Scavenger outscored the default in the paired squad comparison (0.36 vs. 0.11) and trailed in paired free-for-all (7.67 vs. 9.33). Initial Guardian remains the default under the combined promotion rule. An [archive](models/history-through-0252.json) preserves 51 distinct matrices from the continuous batches. These scores are from the 2D simulator. The official host replay checker passed 300/300 on-time actions for Initial Duelist, Evolved Guardian, Evolved Scavenger, and the default with the hybrid navigator.
+
+### Generation 336 checkpoint
+
+Default policy: `duelist`. The batch's simulator leaders were `scavenger_initial` in squad (0.94) and `duelist` in free-for-all (10.67). The [policy archive](models/history-through-0336.json) contains 69 distinct weight matrices.
