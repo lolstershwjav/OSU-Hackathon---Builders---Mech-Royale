@@ -297,6 +297,58 @@ class FightRead(SpecializedPolicies):
         return mode
 
 
+class CleanupTarget(Bot):
+    def combat_target(self, obs, enemies, nearest):
+        if not self.navigator or len(enemies) < 2:
+            return nearest
+        me = obs["self"]
+        if me["hp"] < .55 * me["max_hp"]:
+            return nearest
+        position = me["pos"]
+        arena = self.navigator.arena
+        weak = [enemy for enemy in enemies
+                if enemy["hp"] < .30 * enemy["max_hp"]
+                and distance(position, enemy["pos"]) <= 52
+                and not arena.cover(position, enemy["pos"][:2])]
+        return min(weak, key=lambda enemy: enemy["hp"], default=nearest)
+
+
+class CoverPeek(CoverRecovery):
+    def recovery_goal(self, obs, threats, goal, urgent):
+        me = obs["self"]
+        if (urgent or len(threats) != 1 or not self.navigator
+                or me["hp"] < .75 * me["max_hp"]
+                or obs["t"] - self.last_hit < 3):
+            self.peek_anchor = None
+            return super().recovery_goal(obs, threats, goal, urgent)
+        arena = self.navigator.arena
+        pos = me["pos"]
+        threat = threats[0]
+        anchor = getattr(self, "peek_anchor", None)
+        zone = obs["zone"]
+        if (anchor is not None and distance(pos, anchor) < 12
+                and distance(anchor, zone["next_center"]) < zone["next_radius"] - 7
+                and arena.cover(anchor, threat)):
+            if obs["t"] >= self.peek_until:
+                if distance(pos, anchor) > 2:
+                    return anchor
+                self.peek_anchor = None
+            else:
+                return self.peek_point
+        if not arena.cover(pos, threat):
+            return goal
+        shape = Navigator.shape({**self.mech_config, **me["stats"]})
+        for dx, dy in DIRECTIONS[::2]:
+            x, y = pos[0] + 5 * dx, pos[1] + 5 * dy
+            point = (x, y, arena.ground(x, y))
+            if (distance(point, zone["next_center"]) < zone["next_radius"] - 7
+                    and not arena.cover(point, threat) and arena.segment(pos, point, shape)):
+                self.peek_anchor, self.peek_point = pos, point
+                self.peek_until = obs["t"] + 1.4
+                return point
+        return goal
+
+
 CONTROLLERS = {
     "early-rotation": EarlyRotation,
     "pressure-retreat": PressureRetreat,
@@ -314,6 +366,8 @@ CONTROLLERS = {
     "armed-recovery": ArmedRecovery,
     "specialized-policies": SpecializedPolicies,
     "fight-read": FightRead,
+    "cleanup-target": CleanupTarget,
+    "cover-peek": CoverPeek,
 }
 
 def compare(kit, incumbent, challenger, league, seed, controller=Bot, step=.1):

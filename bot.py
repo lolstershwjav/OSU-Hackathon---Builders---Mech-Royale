@@ -122,6 +122,9 @@ class Bot:
     def tactical_mode(self, mode, obs, enemies):
         return mode
 
+    def combat_target(self, obs, enemies, nearest):
+        return nearest
+
     def recovery_goal(self, obs, threats, goal, urgent):
         return goal
 
@@ -212,8 +215,9 @@ class Bot:
             priority = {"laser": 0, "lightning": 1, "mortar": 2}
             action["take"] = min(reachable, key=lambda item: priority[item["kind"]])["id"]
 
-        target = enemy
-        firing = enemy and (separation < 52 or mode == "engage" or damaged and mode != "evade")
+        target = self.combat_target(obs, enemies, enemy)
+        firing = target and (distance(position, target["pos"]) < 52
+                             or mode == "engage" or damaged and mode != "evade")
         if not enemy and damaged:
             action["aim"] = [self.last_bearing, 0]
         if not enemy and mode == "scavenge" and not urgent:
