@@ -155,3 +155,7 @@ The trainer also tries a mutation confined to one tactical rule each generation.
 ### Check whether the fast simulator overlooks candidates
 
 Run `python3 screen_audit.py --archive ../mech-continuous --kit ../mechfight-kit --seed UNIQUE_INTEGER --output models/screen-audit.json` alongside training. Use a new output path for each audit. It freezes the most recent archived incumbent and league, selects four distinct previously rejected policies, then measures both simulators on six shared seeds with 0.1-second map decisions. The report stores weights, archived generations, per-match map results and squad rankings. Any rejected policy that improves map squad placement and maintains map free-for-all gets six additional paired seeds against the same incumbent. The audit only writes its own report.
+
+### Diagnose a squad and free-for-all tradeoff
+
+Run `python3 tactic_audit.py --audit models/screen-audit.json --kit ../mechfight-kit --candidate clear_rejection --seed UNIQUE_INTEGER --output models/tactic-audit.json`. The audit adds each changed tactic row to the incumbent and independently reverts that row in the challenger. Every variant uses six shared seeds at 0.1-second decisions with the original audit league. Compare per-seed placement changes with survival time, zone damage, combat damage, pressure and blocked movement. A gain in the add test and a loss in the revert test support attribution to that row. A mixed result can indicate interactions or seed sensitivity. Repeat with a new seed to confirm.
