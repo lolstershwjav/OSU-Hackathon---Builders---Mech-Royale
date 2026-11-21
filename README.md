@@ -7,12 +7,32 @@ A placement-first Python bot for the 16-mech Builders Mech Royale. It uses a tra
 | File | Purpose |
 | --- | --- |
 | `Dockerfile` | Root competition entry point. Starts the bot as uid 65534 using a pinned Python patch version and standard-library dependencies only. |
-| `bot.py` | Loads the selected weights and handles candidate movement scoring, projectile avoidance, targeting, and weapon timing. |
+| `bot.py` | Loads tactical weights, chooses objectives, and handles local movement and combat. |
+| `navigation.py` | Reads the official arena, caches traversable surfaces and edges, and plans routes with bounded A*. |
+| `check_navigation.py` | Checks geometry and benchmarks a blocked route on the official arena. |
 | `mechfight.py` | Official starter kit wrapper for the mechfight/1 JSON-lines protocol. |
 | `policy.py` | Defines the seven input features and four tactical modes shared by the live bot and trainer. |
 | `train.py` | Evolves three model families in seeded 16-mech simulated matches. |
 | `models/trained.json` | Contains the initial and evolved weights, validation seeds and scores, and the default policy name. |
 | `oval-survivor/` | Archived Oval Survivor test. The root bot and image do not use it. |
+
+## Hybrid navigation
+
+1. **Tactical policy.** Guardian, Scavenger, and Duelist still choose whether to evade, scavenge, engage, or hold. The controller maps that decision to an objective and can prioritize urgent zone re-entry or take nearby cover.
+2. **Global A*.** The planner reads `v2/world.json` and `v2/terrain.i16` from the official arena mount. It builds walkable surfaces on demand at 6 m spacing, using the current mech cylinder, bilinear terrain heights, polygon footprints and holes, and bridge clearance. Route costs account for the predicted zone at arrival and nearby exposure to visible enemies. It reuses paths, checks shortcuts with swept terrain and clearance samples, and replans when the objective or zone changes materially, threats shift, or movement stalls.
+3. **Local utility.** The waypoint guides the existing 16-direction controller. Projectile avoidance and local zone safety can steer away from it immediately. Directions that fail a short terrain and clearance check are excluded, and jump recovery is available when stalled.
+
+A* searches in short slices across observations. The grid uses sampled walking links and supports stacked floors where they connect within step and slope limits. Air movement uses local steering. Narrow passages below grid resolution can be missed. If arena files are unavailable, the controller falls back to local movement. Set `MECH_NAV=local` for a controlled comparison using the same policy.
+
+From this checkout, with `KIT` pointing to the extracted official starter kit:
+
+```sh
+python3 check_navigation.py "$KIT/arena"
+python3 "$KIT/check/check.py" -- python3 -u bot.py
+MECH_NAV=local python3 "$KIT/check/check.py" -- python3 -u bot.py
+```
+
+The arena benchmark found a 58.1 m walkable route for a blocked 37.4 m direct path. The hybrid and local-only variants each answered 300/300 official replay observations on time. Measured host p50/p99 were 0.5/5.2 ms for hybrid and 0.2/0.5 ms for local-only. Continuous self-play still trains the tactical policies in the 2D simulator. That simulator does not model the 3D navigation upgrade. Actual placement impact and the Docker build remain unverified.
 
 ## Train and compare policies
 

@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 
 import mechfight
+from navigation import Arena, Navigator
 from policy import choose, features
 
 ROOT = Path(__file__).resolve().parent
@@ -34,9 +35,16 @@ class Bot:
         self.last_position = None
         self.last_move = (0, 0)
         self.blocked = 0
+        self.navigator = None
+        self.mech_config = hello["config"]["mech"]
+        if os.getenv("MECH_NAV") != "local":
+            try:
+                self.navigator = Navigator(Arena(hello["map"]["dir"]))
+            except (OSError, KeyError, ValueError):
+                pass
         self.solids = {}
         map_path = Path(hello["map"]["dir"]) / "v2/world.json"
-        if map_path.is_file():
+        if self.navigator is None and map_path.is_file():
             world = json.loads(map_path.read_text(encoding="utf-8"))
             for prism in world["prisms"]:
                 xs, ys = prism["ring"][::2], prism["ring"][1::2]
@@ -46,11 +54,12 @@ class Bot:
                     for row in range(math.floor((y0 - 18) / MAP_CELL), math.floor((y1 + 18) / MAP_CELL) + 1):
                         self.solids.setdefault((col, row), []).append(bounds)
 
-    def movement(self, obs, target, enemy, urgent):
+    def movement(self, obs, target, enemy, urgent, threats):
         me = obs["self"]
         x, y, z = me["pos"]
         if self.last_position is not None and distance(self.last_position, (x, y)) < .17:
-            self.blocked = self.blocked + 1 if any(self.last_move) else 0
+            wants_motion = any(self.last_move) or (self.navigator and distance((x, y), target) > 4)
+            self.blocked = self.blocked + 1 if wants_motion else 0
         else:
             self.blocked = max(0, self.blocked - 2)
         self.last_position = (x, y)
@@ -59,6 +68,11 @@ class Bot:
                   if p[0] - 18 < x < p[2] + 18 and p[1] - 18 < y < p[3] + 18
                   and p[4] < z + 8 and p[5] > z + 1.3]
         zone = obs["zone"]
+        shape = None
+        if self.navigator:
+            shape = Navigator.shape({**self.mech_config, **me["stats"]})
+            target = self.navigator.waypoint(me["pos"], target, shape, zone, obs["t"],
+                                             threats, me["grounded"], self.blocked > 8)
         shots = []
         for shot in obs["projectiles"][:36]:
             if distance(shot["pos"], (x, y)) < 90:
@@ -67,13 +81,18 @@ class Bot:
                 shots.append((sx, sy, sz, vx, vy, vz, max(1, vx * vx + vy * vy)))
 
         goal_distance = distance((x, y), target)
+        horizon = max(3, min(10, goal_distance)) if shape else 10
 
         def utility(direction):
             dx, dy = direction
-            nx, ny = x + dx * 10, y + dy * 10
+            nx, ny = x + dx * horizon, y + dy * horizon
             value = goal_distance - distance((nx, ny), target)
             edge = distance((nx, ny), zone["center"]) - zone["radius"] + 6
             value -= 2.4 * max(0.0, edge)
+            if shape and (dx or dy) and not self.navigator.arena.segment(
+                    (x, y, z), (x + dx * 3.5, y + dy * 3.5), shape,
+                    airborne=not me["grounded"]):
+                return -math.inf
             for x0, y0, x1, y1, _, _ in nearby:
                 if x0 - 2 < nx < x1 + 2 and y0 - 2 < ny < y1 + 2:
                     value -= 13
@@ -144,7 +163,26 @@ class Bot:
             advance = max(-1, min(1, (separation - 65) / 45))
             goal = (x + 35 * (advance * dx - side * dy), y + 35 * (advance * dy + side * dx))
 
-        move = self.movement(obs, goal, enemy, urgent)
+        threats = tuple(tuple(e["pos"][:2]) for e in sorted(
+            enemies, key=lambda e: distance(position, e["pos"]))[:3])
+        if self.navigator and not urgent and enemy and mode in ("evade", "hold") and separation < 75:
+            arena = self.navigator.arena
+            shape = Navigator.shape({**self.mech_config, **me["stats"]})
+            candidates = []
+            for direction in DIRECTIONS[::2]:
+                if not any(direction):
+                    continue
+                px, py = x + 12 * direction[0], y + 12 * direction[1]
+                point = (px, py, arena.ground(px, py))
+                if (distance(point, enemy["pos"]) > max(25, separation - 3)
+                        and distance(point, zone["next_center"]) < zone["next_radius"] - 7
+                        and arena.cover(point, threats[0])
+                        and arena.clear(*point, *shape[:2])
+                        and abs(point[2] - z) < 5):
+                    candidates.append(point)
+            if candidates:
+                goal = min(candidates, key=lambda point: distance(point, goal))
+        move = self.movement(obs, goal, enemy, urgent, threats)
         action = {"tick": obs["tick"], "move": move, "fire": [False, False]}
         action["boost"] = bool(any(move) and me["energy"] > 23
                                and (urgent or mode == "evade" and separation < 80))
