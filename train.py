@@ -6,6 +6,8 @@ import math
 from pathlib import Path
 import random
 from statistics import mean
+import subprocess
+import sys
 
 from policy import MODES, choose, features
 
@@ -165,6 +167,23 @@ def recent_failures(prior, incumbent):
             if entry["incumbent"] == incumbent_id and entry["remaining"] > 0}
 
 
+def benchmark_controller(checkpoint, kit, generation, seed):
+    """Rotate through the controller shortlist alongside the weight search."""
+    variants = ("format-adaptive", "health-recovery", "armed-recovery")
+    if generation % 56 or not (kit / "check/stream.jsonl.gz").is_file():
+        return
+    variant = variants[(generation // 56) % len(variants)]
+    report = checkpoint.parent / "controller-trials" / f"{generation}-{variant}.json"
+    report.parent.mkdir(parents=True, exist_ok=True)
+    print(f"Benchmarking {variant} at generation {generation}", flush=True)
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "arena_trials.py"), "--kit", str(kit),
+         "--checkpoint", str(checkpoint), "--seed", str(seed), "--controller", variant,
+         "--output", str(report)], check=False)
+    if result.returncode:
+        print(f"Controller benchmark failed with exit code {result.returncode}", flush=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--seed", type=int, default=2027)
@@ -288,6 +307,8 @@ def main():
     temporary = args.output.with_suffix(args.output.suffix + ".tmp")
     temporary.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     temporary.replace(args.output)
+    if prior is not None:
+        benchmark_controller(args.output, Path(args.arena_kit), total, args.seed)
     print(json.dumps({"champion": champion, "validation": results, "promotion": promotion, "recent_failures": failures,
               "crossover_wins": crossover_wins, "crossover_history": crossover_history}, indent=2))
 
