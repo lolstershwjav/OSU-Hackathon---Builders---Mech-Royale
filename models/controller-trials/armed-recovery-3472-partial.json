@@ -1,0 +1,39 @@
+{
+  "simulator": "map-backed",
+  "step_s": 0.1,
+  "generation": 3472,
+  "seed": 1795298781327060068,
+  "status": "controller_benchmark_interrupted",
+  "matched_results": [
+    {
+      "seed": 17129609,
+      "format": "squad",
+      "baseline": 2,
+      "challenger": 2
+    },
+    {
+      "seed": 17129609,
+      "format": "free_for_all",
+      "baseline": 13,
+      "challenger": 13
+    },
+    {
+      "seed": 16736164,
+      "format": "squad",
+      "baseline": 4,
+      "challenger": 4
+    },
+    {
+      "seed": 16736164,
+      "format": "free_for_all",
+      "baseline": 8,
+      "challenger": 8
+    },
+    {
+      "seed": 12413286,
+      "format": "squad",
+      "baseline": 1,
+      "challenger": 2
+    }
+  ]
+}

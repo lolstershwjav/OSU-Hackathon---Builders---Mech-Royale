@@ -243,3 +243,15 @@ In the squad map-backed comparison, disabling SilkPath changed placement from 4.
 In the free-for-all map-backed comparison, disabling SilkPath changed placement from 15.00 to 15.00 across 1 paired seeds.
 
 Both pinned branches passed all 300 local official-kit replay observations.
+
+### Generation 3486 checkpoint
+
+This update archives 6 distinct policy matrices. On the paired fast simulator promotion seeds, Duelist Initial changed squad placement by -0.08 points and free-for-all placement by -0.75 points. The active fast trainer policy is Scavenger Initial.
+
+Generation 3472 saved its weights before the armed-recovery controller benchmark was interrupted. The completed match pairs are archived as partial map-backed evidence.
+
+In the squad map-backed comparison, the contextual-upgrade branch changed placement from 3.00 to 3.00 across 2 paired seeds.
+
+In the free-for-all map-backed comparison, the contextual-upgrade branch changed placement from 4.00 to 4.00 across 1 paired seeds.
+
+Both pinned branches passed all 300 local official-kit replay observations.
