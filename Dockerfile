@@ -6,7 +6,7 @@ FROM python:3.13.9-slim
 WORKDIR /bot
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 COPY --from=build /sasuke /bot/sasuke-bin
-COPY bob_mix.py madara.py tsunade.py bot.py navigation.py policy.py sakura.py mechfight.py LICENSE-lance ./
+COPY bob_mix.py madara.py bot.py navigation.py policy.py sakura.py mechfight.py LICENSE-lance ./
 COPY giddy/LICENSE /LICENSE-giddy
 USER 65534:65534
 ENTRYPOINT ["python3", "/bot/bob_mix.py"]

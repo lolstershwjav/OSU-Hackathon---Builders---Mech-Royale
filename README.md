@@ -4,7 +4,7 @@ A placement-first Python bot for the 16-mech Builders Mech Royale. It uses a tra
 
 ## Competition runtime
 
-The root Dockerfile starts Naruto through `bob_mix.py` as uid 65534. Sasuke handles practice and free-for-all decisions, with Sakura as a fallback and the existing Tsunade escape and Madara duel overrides. The Go controller incorporates [waiprotein’s MIT-licensed changes](https://github.com/waiprotein/mech-royale-bot/tree/6dcaf14cb7410497f8a195d68c18a3b56730969f) to the Giddy bot. Training checkpoints under `models/` are available for simulator work.
+The root Dockerfile starts Naruto through `bob_mix.py` as uid 65534. Sasuke handles practice and free-for-all decisions, with Sakura as a fallback and the Madara duel override. The Go controller incorporates [waiprotein’s MIT-licensed changes](https://github.com/waiprotein/mech-royale-bot/tree/6dcaf14cb7410497f8a195d68c18a3b56730969f) to the Giddy bot. Training checkpoints under `models/` are available for simulator work.
 
 ## What each file does
 

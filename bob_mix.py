@@ -1,4 +1,4 @@
-"""Naruto delegates to Sasuke with a Sakura fallback and arena overrides."""
+"""Naruto delegates to Sasuke with a Sakura fallback and a Madara duel override."""
 import atexit
 import json
 import os
@@ -12,7 +12,6 @@ import mechfight
 from sakura import Bot as Sakura
 from madara import duel_action
 from navigation import Arena
-from tsunade import escape_plan
 
 
 class Bob:
@@ -25,9 +24,6 @@ class Bob:
             self.arena = Arena(hello["map"]["dir"])
         except (KeyError, OSError, ValueError):
             self.arena = None
-        self.escape_goal = None
-        self.escape_until = 0.0
-        self.escape_retry = 0.0
         self.requests = Queue(maxsize=1)
         self.responses = Queue()
         binary = os.getenv("NARUTO_SASUKE", str(Path(__file__).with_name("sasuke-bin")))
@@ -81,20 +77,6 @@ class Bob:
         action = self.base_action(obs)
         if self.arena is None:
             return action
-        now = obs["t"]
-        if self.escape_goal is not None and now >= self.escape_until:
-            self.escape_goal = None
-            self.escape_retry = now + 2
-        if now >= self.escape_retry:
-            plan = escape_plan(obs, self.arena, self.mech_config, self.escape_goal)
-            if plan:
-                if self.escape_goal is None:
-                    self.escape_until = now + 8
-                self.escape_goal, escape = plan
-                return {**action, **escape}
-            if self.escape_goal is not None:
-                self.escape_goal = None
-                self.escape_retry = now + 2
         duel = duel_action(obs, self.arena, self.mech_config)
         return {"tick": obs["tick"], **duel} if duel is not None else action
 
