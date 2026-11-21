@@ -1,0 +1,769 @@
+{
+  "base_generation": 560,
+  "base_policy": "incumbent",
+  "screening_seeds": [
+    5041146,
+    5920034,
+    5783587,
+    5627333,
+    5981066,
+    5401654,
+    5037462,
+    5697414,
+    5771176,
+    5449826,
+    5939796,
+    5688870,
+    5811282,
+    5310050,
+    5431111,
+    5877063,
+    5568341,
+    5478429,
+    5759604,
+    5277120,
+    5842431,
+    5748296,
+    5794207,
+    5666594
+  ],
+  "held_out_seeds": [
+    6779696,
+    6522954,
+    6928342,
+    6987415,
+    6842350,
+    6217281,
+    6751843,
+    6675580,
+    6319222,
+    6493168,
+    6095580,
+    6249125,
+    6842960,
+    6677312,
+    6052365,
+    6196327,
+    6924120,
+    6752712,
+    6390511,
+    6565176,
+    6982585,
+    6168009,
+    6359448,
+    6427106,
+    6471229,
+    6076242,
+    6289484,
+    6542112,
+    6030687,
+    6319882,
+    6778595,
+    6741779,
+    6653297,
+    6980584,
+    6296954,
+    6092138,
+    6441486,
+    6632015,
+    6267913,
+    6694060,
+    6246580,
+    6835637,
+    6190270,
+    6156224,
+    6961298,
+    6434329,
+    6918020,
+    6427261,
+    6352756,
+    6213628,
+    6120254,
+    6776129,
+    6619032,
+    6278629,
+    6035676,
+    6708946,
+    6587768,
+    6179904,
+    6288527,
+    6242129,
+    6806694,
+    6994311,
+    6836897,
+    6803212
+  ],
+  "league": [
+    [
+      [
+        -0.25,
+        1,
+        0.8,
+        0.6,
+        -0.3,
+        0,
+        -0.4
+      ],
+      [
+        0,
+        -0.3,
+        -0.8,
+        -0.5,
+        0,
+        1.7,
+        -0.8
+      ],
+      [
+        -0.6,
+        -0.5,
+        1,
+        0,
+        1,
+        0,
+        -0.5
+      ],
+      [
+        0.15,
+        0.2,
+        -0.3,
+        0,
+        0,
+        0,
+        0.7
+      ]
+    ],
+    [
+      [
+        -0.55,
+        1.3,
+        0.7,
+        0.6,
+        -0.5,
+        0,
+        -0.5
+      ],
+      [
+        0.1,
+        0,
+        -0.6,
+        -0.3,
+        0,
+        2.1,
+        -0.7
+      ],
+      [
+        -0.5,
+        -0.5,
+        1.3,
+        0,
+        1,
+        0,
+        -0.4
+      ],
+      [
+        0,
+        0.5,
+        -0.65,
+        0,
+        0,
+        0,
+        1
+      ]
+    ],
+    [
+      [
+        -0.9,
+        1.45,
+        0.7,
+        0.35,
+        -0.6,
+        0,
+        -0.5
+      ],
+      [
+        -0.25,
+        -0.4,
+        -0.8,
+        -0.5,
+        0,
+        1.4,
+        -0.8
+      ],
+      [
+        -0.1,
+        -0.5,
+        1.55,
+        -0.15,
+        1.1,
+        0,
+        -0.6
+      ],
+      [
+        0.15,
+        0.45,
+        -0.6,
+        0,
+        0,
+        0,
+        1.2
+      ]
+    ],
+    [
+      [
+        1.9173,
+        -2.6704,
+        2.1966,
+        0.1409,
+        1.8031,
+        -3,
+        -2.8
+      ],
+      [
+        -0.2901,
+        -2.9227,
+        0.7334,
+        -2.6756,
+        0.7813,
+        1.7487,
+        1.8896
+      ],
+      [
+        -1.856,
+        -1.631,
+        -1.4725,
+        -0.178,
+        -0.6004,
+        -0.1225,
+        -3
+      ],
+      [
+        1.6695,
+        3,
+        -0.9138,
+        2.498,
+        -1.4378,
+        -3,
+        -2.76
+      ]
+    ],
+    [
+      [
+        -0.1113,
+        -2.7242,
+        0.2579,
+        0.3523,
+        2.0928,
+        0.199,
+        -1.3772
+      ],
+      [
+        -0.438,
+        -2.4666,
+        0.2883,
+        -1.1958,
+        1.9268,
+        0.6451,
+        2.9917
+      ],
+      [
+        -0.9976,
+        -1.1842,
+        -2.9681,
+        0.6055,
+        -1.5579,
+        -1.7769,
+        -2.7292
+      ],
+      [
+        1.6033,
+        3,
+        -2.1221,
+        2.9043,
+        -0.5235,
+        -0.5878,
+        -3
+      ]
+    ],
+    [
+      [
+        -0.0985,
+        -0.9307,
+        0.7094,
+        0.102,
+        2.0643,
+        -2.2195,
+        -2.8397
+      ],
+      [
+        0.2801,
+        -2.7523,
+        -1.0093,
+        -2.3281,
+        0.9297,
+        1.6153,
+        2.0656
+      ],
+      [
+        -0.5603,
+        -2.0675,
+        -1.7779,
+        1.9902,
+        -1.5757,
+        0.7327,
+        -2.6178
+      ],
+      [
+        1.4777,
+        3,
+        -2.1444,
+        2.9485,
+        -0.5414,
+        -0.0724,
+        -2.9489
+      ]
+    ]
+  ],
+  "screening": {
+    "frozen_default": 0.3333333333333333,
+    "g336_scavenger_initial": 0.4166666666666667,
+    "g336_duelist_initial": 0.5,
+    "g350_scavenger": 0.3333333333333333,
+    "g280_guardian": 0.25,
+    "g280_scavenger": 0.25,
+    "g280_duelist": 0.25,
+    "g308_guardian": 0.20833333333333334,
+    "g308_duelist": 0.20833333333333334,
+    "g112_scavenger": 0.2916666666666667,
+    "g56_scavenger": 0.25,
+    "g140_guardian": 0.3333333333333333,
+    "g210_scavenger": 0.2916666666666667,
+    "g98_scavenger": 0.4166666666666667,
+    "g252_scavenger": 0.3333333333333333,
+    "g434_scavenger": 0.2916666666666667,
+    "g196_duelist": 0.2916666666666667,
+    "g196_incumbent": 0.3333333333333333,
+    "g434_duelist": 0.25,
+    "g210_duelist": 0.25,
+    "g434_guardian": 0.2916666666666667,
+    "g112_guardian": 0.2916666666666667,
+    "g350_incumbent": 0.4166666666666667,
+    "g238_scavenger": 0.25,
+    "frozen_default__g336_duelist_initial_evade": 0.20833333333333334,
+    "frozen_default__g336_duelist_initial_scavenge": 0.25,
+    "frozen_default__g336_duelist_initial_engage": 0.3333333333333333,
+    "frozen_default__g336_duelist_initial_hold": 0.25,
+    "frozen_default__g336_scavenger_initial_evade": 0.20833333333333334,
+    "frozen_default__g336_scavenger_initial_scavenge": 0.3333333333333333,
+    "frozen_default__g336_scavenger_initial_engage": 0.3333333333333333,
+    "frozen_default__g336_scavenger_initial_hold": 0.25,
+    "frozen_default__g98_scavenger_evade": 0.20833333333333334,
+    "frozen_default__g98_scavenger_scavenge": 0.2916666666666667,
+    "frozen_default__g98_scavenger_engage": 0.3333333333333333,
+    "frozen_default__g98_scavenger_hold": 0.2916666666666667,
+    "frozen_default__g350_incumbent_evade": 0.2916666666666667,
+    "frozen_default__g350_incumbent_scavenge": 0.3333333333333333,
+    "frozen_default__g350_incumbent_engage": 0.3333333333333333,
+    "frozen_default__g350_incumbent_hold": 0.2916666666666667,
+    "g336_duelist_initial__g336_scavenger_initial_evade": 0.4583333333333333,
+    "g336_duelist_initial__g336_scavenger_initial_scavenge": 0.4583333333333333,
+    "g336_duelist_initial__g336_scavenger_initial_engage": 0.4583333333333333,
+    "g336_duelist_initial__g336_scavenger_initial_hold": 0.5,
+    "g336_duelist_initial__g98_scavenger_evade": 0.5833333333333334,
+    "g336_duelist_initial__g98_scavenger_scavenge": 0.3333333333333333,
+    "g336_duelist_initial__g98_scavenger_engage": 0.20833333333333334,
+    "g336_duelist_initial__g98_scavenger_hold": 0.4583333333333333,
+    "g336_duelist_initial__g350_incumbent_evade": 0.4166666666666667,
+    "g336_duelist_initial__g350_incumbent_scavenge": 0.5,
+    "g336_duelist_initial__g350_incumbent_engage": 0.20833333333333334,
+    "g336_duelist_initial__g350_incumbent_hold": 0.2916666666666667,
+    "g336_scavenger_initial__g336_duelist_initial_evade": 0.4583333333333333,
+    "g336_scavenger_initial__g336_duelist_initial_scavenge": 0.375,
+    "g336_scavenger_initial__g336_duelist_initial_engage": 0.375,
+    "g336_scavenger_initial__g336_duelist_initial_hold": 0.4166666666666667,
+    "g336_scavenger_initial__g98_scavenger_evade": 0.375,
+    "g336_scavenger_initial__g98_scavenger_scavenge": 0.3333333333333333,
+    "g336_scavenger_initial__g98_scavenger_engage": 0.16666666666666666,
+    "g336_scavenger_initial__g98_scavenger_hold": 0.2916666666666667,
+    "g336_scavenger_initial__g350_incumbent_evade": 0.20833333333333334,
+    "g336_scavenger_initial__g350_incumbent_scavenge": 0.5,
+    "g336_scavenger_initial__g350_incumbent_engage": 0.16666666666666666,
+    "g336_scavenger_initial__g350_incumbent_hold": 0.375
+  },
+  "held_out": {
+    "frozen_default": {
+      "free_for_all": 11.03125,
+      "squad": 0.40625,
+      "squad_survival_rounds": 41.28125
+    },
+    "g336_duelist_initial__g98_scavenger_evade": {
+      "free_for_all": 7.421875,
+      "squad": 0.6875,
+      "squad_survival_rounds": 38,
+      "squad_delta": 0.28125,
+      "free_for_all_delta": -3.609375,
+      "combined_delta": -1.334879032258065,
+      "eligible": false
+    },
+    "g336_duelist_initial": {
+      "free_for_all": 6.3125,
+      "squad": 0.671875,
+      "squad_survival_rounds": 36.40625,
+      "squad_delta": 0.265625,
+      "free_for_all_delta": -4.71875,
+      "combined_delta": -1.8018649193548386,
+      "eligible": false
+    },
+    "g336_duelist_initial__g336_scavenger_initial_hold": {
+      "free_for_all": 5.703125,
+      "squad": 0.671875,
+      "squad_survival_rounds": 36.375,
+      "squad_delta": 0.265625,
+      "free_for_all_delta": -5.328125,
+      "combined_delta": -2.045917338709678,
+      "eligible": false
+    },
+    "g336_duelist_initial__g350_incumbent_scavenge": {
+      "free_for_all": 5.390625,
+      "squad": 0.71875,
+      "squad_survival_rounds": 36.96875,
+      "squad_delta": 0.3125,
+      "free_for_all_delta": -5.640625,
+      "combined_delta": -2.1417338709677423,
+      "eligible": false
+    },
+    "g336_scavenger_initial__g350_incumbent_scavenge": {
+      "free_for_all": 7.640625,
+      "squad": 0.65625,
+      "squad_survival_rounds": 39.6875,
+      "squad_delta": 0.25,
+      "free_for_all_delta": -3.390625,
+      "combined_delta": -1.246673387096774,
+      "eligible": false
+    },
+    "g336_duelist_initial__g336_scavenger_initial_evade": {
+      "free_for_all": 6.703125,
+      "squad": 0.671875,
+      "squad_survival_rounds": 36.75,
+      "squad_delta": 0.265625,
+      "free_for_all_delta": -4.328125,
+      "combined_delta": -1.6422883064516132,
+      "eligible": false
+    },
+    "g336_duelist_initial__g336_scavenger_initial_scavenge": {
+      "free_for_all": 6.546875,
+      "squad": 0.671875,
+      "squad_survival_rounds": 36.359375,
+      "squad_delta": 0.265625,
+      "free_for_all_delta": -4.484375,
+      "combined_delta": -1.7085685483870967,
+      "eligible": false
+    }
+  },
+  "winner": null,
+  "policies": {
+    "frozen_default": [
+      [
+        2.4626,
+        -3,
+        2.4718,
+        1.663,
+        0.9454,
+        -2.1954,
+        -2.4454
+      ],
+      [
+        1.8282,
+        -1.8017,
+        2.1199,
+        1.8578,
+        0.4105,
+        -1.0036,
+        0.2371
+      ],
+      [
+        -2.6383,
+        -1.933,
+        1.1563,
+        1.0446,
+        -0.4728,
+        -0.5872,
+        -1.2333
+      ],
+      [
+        1.6035,
+        -1.9869,
+        -0.4694,
+        1.5926,
+        2.4741,
+        0.5336,
+        -0.9798
+      ]
+    ],
+    "g336_duelist_initial__g98_scavenger_evade": [
+      [
+        -1.59685,
+        1.53535,
+        1.67295,
+        0.81975,
+        -1.6438,
+        0.2915,
+        -0.29585
+      ],
+      [
+        -0.25,
+        -0.4,
+        -0.8,
+        -0.5,
+        0,
+        1.4,
+        -0.8
+      ],
+      [
+        -0.1,
+        -0.5,
+        1.55,
+        -0.15,
+        1.1,
+        0,
+        -0.6
+      ],
+      [
+        0.15,
+        0.45,
+        -0.6,
+        0,
+        0,
+        0,
+        1.2
+      ]
+    ],
+    "g336_duelist_initial": [
+      [
+        -0.9,
+        1.45,
+        0.7,
+        0.35,
+        -0.6,
+        0,
+        -0.5
+      ],
+      [
+        -0.25,
+        -0.4,
+        -0.8,
+        -0.5,
+        0,
+        1.4,
+        -0.8
+      ],
+      [
+        -0.1,
+        -0.5,
+        1.55,
+        -0.15,
+        1.1,
+        0,
+        -0.6
+      ],
+      [
+        0.15,
+        0.45,
+        -0.6,
+        0,
+        0,
+        0,
+        1.2
+      ]
+    ],
+    "g336_duelist_initial__g336_scavenger_initial_hold": [
+      [
+        -0.9,
+        1.45,
+        0.7,
+        0.35,
+        -0.6,
+        0,
+        -0.5
+      ],
+      [
+        -0.25,
+        -0.4,
+        -0.8,
+        -0.5,
+        0,
+        1.4,
+        -0.8
+      ],
+      [
+        -0.1,
+        -0.5,
+        1.55,
+        -0.15,
+        1.1,
+        0,
+        -0.6
+      ],
+      [
+        0.075,
+        0.475,
+        -0.625,
+        0.0,
+        0.0,
+        0.0,
+        1.1
+      ]
+    ],
+    "g336_duelist_initial__g350_incumbent_scavenge": [
+      [
+        -0.9,
+        1.45,
+        0.7,
+        0.35,
+        -0.6,
+        0,
+        -0.5
+      ],
+      [
+        -1.465,
+        1.3,
+        -0.485,
+        1.2043,
+        -0.6033,
+        1.03225,
+        0.15365
+      ],
+      [
+        -0.1,
+        -0.5,
+        1.55,
+        -0.15,
+        1.1,
+        0,
+        -0.6
+      ],
+      [
+        0.15,
+        0.45,
+        -0.6,
+        0,
+        0,
+        0,
+        1.2
+      ]
+    ],
+    "g336_scavenger_initial__g350_incumbent_scavenge": [
+      [
+        -0.55,
+        1.3,
+        0.7,
+        0.6,
+        -0.5,
+        0,
+        -0.5
+      ],
+      [
+        -1.29,
+        1.5,
+        -0.385,
+        1.3043,
+        -0.6033,
+        1.38225,
+        0.20365
+      ],
+      [
+        -0.5,
+        -0.5,
+        1.3,
+        0,
+        1,
+        0,
+        -0.4
+      ],
+      [
+        0,
+        0.5,
+        -0.65,
+        0,
+        0,
+        0,
+        1
+      ]
+    ],
+    "g336_duelist_initial__g336_scavenger_initial_evade": [
+      [
+        -0.725,
+        1.375,
+        0.7,
+        0.475,
+        -0.55,
+        0.0,
+        -0.5
+      ],
+      [
+        -0.25,
+        -0.4,
+        -0.8,
+        -0.5,
+        0,
+        1.4,
+        -0.8
+      ],
+      [
+        -0.1,
+        -0.5,
+        1.55,
+        -0.15,
+        1.1,
+        0,
+        -0.6
+      ],
+      [
+        0.15,
+        0.45,
+        -0.6,
+        0,
+        0,
+        0,
+        1.2
+      ]
+    ],
+    "g336_duelist_initial__g336_scavenger_initial_scavenge": [
+      [
+        -0.9,
+        1.45,
+        0.7,
+        0.35,
+        -0.6,
+        0,
+        -0.5
+      ],
+      [
+        -0.075,
+        -0.2,
+        -0.7,
+        -0.4,
+        0.0,
+        1.75,
+        -0.75
+      ],
+      [
+        -0.1,
+        -0.5,
+        1.55,
+        -0.15,
+        1.1,
+        0,
+        -0.6
+      ],
+      [
+        0.15,
+        0.45,
+        -0.6,
+        0,
+        0,
+        0,
+        1.2
+      ]
+    ]
+  }
+}

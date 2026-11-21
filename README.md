@@ -104,3 +104,7 @@ Default policy: `duelist`. The batch's simulator leaders were `scavenger_initial
 ### Squad-focused trial
 
 Four targeted weight changes tested favorable engagements, retreat when wounded, safe looting, and circle positioning. In the [48-seed holdout](models/squad-experiment.json), Initial Duelist improved squad placement from 0.31 to 0.65 but reduced free-for-all from 10.73 to 4.44. None of the finalists satisfied the new promotion criteria. These scores come from the local 2D simulator.
+
+### Learning from crossover results
+
+Training checkpoints record cumulative attempt and win counts for each crossover rule. New batches sample rules that have helped more often, with exploration for all four rules. A separate [squad refinement trial](models/squad-refine.json) screened 64 distinct policies and evaluated its finalists on 64 fresh seeds. The best squad policy reached 0.72 versus the frozen default's 0.41, with free-for-all falling from 11.03 to 5.39. Every candidate failed at least one promotion requirement. The saved candidates are available for subsequent evaluation.

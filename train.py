@@ -168,6 +168,10 @@ def main():
         incumbent = prior["policies"][prior["champion"]]
         archive.extend([*current.values(), incumbent])
     crossover_wins = dict.fromkeys(MODES, 0)
+    crossover_history = {
+        mode: dict((prior or {}).get("crossover_history", {}).get(mode, {"attempts": 0, "wins": 0}))
+        for mode in MODES
+    }
     for generation in range(args.generations):
         seeds = rng.sample(range(10_000, 900_000), 5)
         evolved = {}
@@ -181,14 +185,20 @@ def main():
             # A row is one mode's scoring rule. Transplant one at a time so a
             # successful borrowing can be attributed to a specific behavior.
             donor_name = rng.choice([other for other in current if other != name])
-            mode = rng.randrange(len(MODES))
+            # Favor rules with a history of helping while keeping every rule in exploration.
+            odds = [.10 + (row["wins"] + 1) / (row["attempts"] + 4)
+                    for row in crossover_history.values()]
+            mode = rng.choices(range(len(MODES)), weights=odds, k=1)[0]
+            record = crossover_history[MODES[mode]]
             donor = current[donor_name]
             hybrid = [donor[i] if i == mode else row for i, row in enumerate(parent)]
             if hybrid not in challengers:
                 challengers.append(hybrid)
+                record["attempts"] += 1
             winner = max(challengers, key=lambda w: score(evaluate(w, archive, seeds)))
             if winner is hybrid:
                 crossover_wins[MODES[mode]] += 1
+                record["wins"] += 1
                 print(f"{name} retained {donor_name}'s {MODES[mode]} rule", flush=True)
             evolved[name] = winner
         archive.extend(evolved.values())
@@ -231,13 +241,13 @@ def main():
     report = {"seed": args.seed, "generations": args.generations, "total_generations": total,
               "validation_seeds": validation, "champion": champion, "policies": candidates,
               "validation": results, "promotion": promotion,
-              "crossover_wins": crossover_wins}
+              "crossover_wins": crossover_wins, "crossover_history": crossover_history}
     args.output.parent.mkdir(parents=True, exist_ok=True)
     temporary = args.output.with_suffix(args.output.suffix + ".tmp")
     temporary.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     temporary.replace(args.output)
     print(json.dumps({"champion": champion, "validation": results, "promotion": promotion,
-              "crossover_wins": crossover_wins}, indent=2))
+              "crossover_wins": crossover_wins, "crossover_history": crossover_history}, indent=2))
 
 
 if __name__ == "__main__":
