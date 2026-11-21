@@ -68,3 +68,7 @@ A spatial index now limits obstacle checks to relevant map cells and the control
 Default after the paired promotion test: `guardian_initial`. The challenger was `guardian`. Paired metrics are in the checkpoint. These are local simulator placement scores.
 
 The current default passed the official host replay checker with 300/300 on-time responses. Docker and official scored matches remain unverified.
+
+### Continuous training checkpoint
+
+At 42 cumulative generations, the default policy is `guardian_initial`. On the latest simulator validation seeds, `duelist_initial` led squad placement with 0.56 points, and `guardian` led free-for-all with 10.61 points. The checkpoint records the paired promotion decision.
