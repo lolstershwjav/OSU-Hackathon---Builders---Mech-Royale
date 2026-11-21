@@ -1,0 +1,48 @@
+{
+  "runtime": "78c5c5fdc2e3703a8cdb0a426e67404da80defb6",
+  "simulator": "map-backed",
+  "step_s": 0.1,
+  "profile": "flank",
+  "runs": [
+    {
+      "seed": 19217843,
+      "mode": "squad",
+      "variant": "NoSwitch",
+      "points": 9,
+      "duration": 280.2,
+      "switch": null,
+      "fallbacks": 0,
+      "diagnostics": {
+        "zone_damage": 0,
+        "combat_damage": 4001.7240000000033,
+        "blocked_steps": 0,
+        "pressure_s": 25.700000000000095,
+        "shots": 103,
+        "hits": 85,
+        "zone_deaths": 0,
+        "combat_deaths": 1,
+        "timeouts": 0
+      }
+    },
+    {
+      "seed": 19217843,
+      "mode": "squad",
+      "variant": "ObservedNaruto",
+      "points": 9,
+      "duration": 280.2,
+      "switch": null,
+      "fallbacks": 0,
+      "diagnostics": {
+        "zone_damage": 0,
+        "combat_damage": 4001.7240000000033,
+        "blocked_steps": 0,
+        "pressure_s": 25.700000000000095,
+        "shots": 103,
+        "hits": 85,
+        "zone_deaths": 0,
+        "combat_deaths": 1,
+        "timeouts": 0
+      }
+    }
+  ]
+}
