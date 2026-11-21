@@ -116,7 +116,7 @@ class Naruto:
             self.tsunade = None
 
     def _send_to_naruto(self, obs: dict) -> Optional[dict]:
-        """Send observation to Giddy, return action or None on failure."""
+        """Send observation to Naruto practice driver, return action or None on failure."""
         if not self.naruto_process or self.naruto_process.poll() is not None:
             return None
 

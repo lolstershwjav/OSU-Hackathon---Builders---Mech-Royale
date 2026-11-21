@@ -1,7 +1,7 @@
 package main
 
 import (
-	"giddy/mech"
+	"naruto/mech"
 )
 
 func main() {
