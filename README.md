@@ -68,7 +68,7 @@ Resume from the latest checkpoint with a new seed:
 python3 train.py --resume models/trained.json --seed 20261121 --generations 14
 ```
 
-Every generation tests mutations at one of three scales and tries borrowing one tactical scoring rule from another family. The borrowed rule survives only when its hybrid wins that family's evaluation. Validation uses mixed lineups and a common seed set. The leading candidate then faces the previous default on 36 separate seeds with identical opponent lineups and spawn slots in each comparison. Promotion requires a gain greater than 0.10 on the combined metric. The checkpoint records both sides of the comparison, the number of crossover wins by tactical mode, and the cumulative generation count.
+Every generation tests mutations at one of three scales and tries borrowing one tactical scoring rule from another family. The borrowed rule survives only when its hybrid wins that family's evaluation. Validation uses mixed lineups and a common seed set. The leading candidate then faces the previous default on 36 separate seeds with identical opponent lineups and spawn slots in each comparison. Promotion requires higher squad placement, at least the incumbent's free-for-all placement, and a gain greater than 0.10 on the combined metric. The checkpoint records both sides of the comparison, the number of crossover wins by tactical mode, and the cumulative generation count.
 
 A spatial index now limits obstacle checks to relevant map cells and the controller reuses distance calculations within a decision. With identical model weights, all 300 replay actions matched the previous controller. Median in-process time was 0.0281 ms per observation, down from 0.0458 ms across 15 runs per controller. Host measurements exclude process I/O and official container scheduling.
 
@@ -100,3 +100,7 @@ The latest simulator batch favored Initial Duelist in squad play (0.72 points) a
 ### Generation 336 checkpoint
 
 Default policy: `duelist`. The batch's simulator leaders were `scavenger_initial` in squad (0.94) and `duelist` in free-for-all (10.67). The [policy archive](models/history-through-0336.json) contains 69 distinct weight matrices.
+
+### Squad-focused trial
+
+Four targeted weight changes tested favorable engagements, retreat when wounded, safe looting, and circle positioning. In the [48-seed holdout](models/squad-experiment.json), Initial Duelist improved squad placement from 0.31 to 0.65 but reduced free-for-all from 10.73 to 4.44. None of the finalists satisfied the new promotion criteria. These scores come from the local 2D simulator.

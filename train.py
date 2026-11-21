@@ -204,11 +204,20 @@ def main():
     champion = challenger
     promotion = None
     if incumbent is not None:
+        baseline_validation = evaluate(incumbent, league, validation)
+        promising = [name for name in challengers
+                     if results[name]["free_for_all"] >= baseline_validation["free_for_all"]
+                     and results[name]["squad"] > baseline_validation["squad"]]
+        if promising:
+            challenger = max(promising, key=lambda name: (results[name]["squad"], score(results[name])))
+        champion = challenger
         gate_seeds = rng.sample(range(2_000_000, 3_000_000), 36)
         # Match the incumbent and challenger against identical lineups and seeds.
         baseline = evaluate(incumbent, league, gate_seeds)
         trial = evaluate(candidates[challenger], league, gate_seeds)
-        promoted = score(trial) > score(baseline) + .10
+        promoted = (trial["squad"] > baseline["squad"]
+                    and trial["free_for_all"] >= baseline["free_for_all"]
+                    and score(trial) > score(baseline) + .10)
         promotion = {"challenger": challenger, "incumbent": prior["champion"],
                      "incumbent_metrics": baseline, "challenger_metrics": trial,
                      "promoted": promoted, "seeds": gate_seeds}
