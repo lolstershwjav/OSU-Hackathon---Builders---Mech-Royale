@@ -241,6 +241,62 @@ class ArmedRecovery(HealthRecovery):
         return min(weapons, key=lambda pos: distance(me["pos"], pos), default=goal)
 
 
+class SpecializedPolicies(ArmedRecovery):
+    """Test a practice opener and a separate fallback policy."""
+    ffa_weights = None
+    previous_alive = None
+    unexplained_deaths = 0
+    inferred_ffa = False
+
+    def act(self, obs):
+        alive = obs["alive"]
+        if self.previous_alive is not None and obs["t"] <= 90:
+            kills = sum(event["type"] == "kill" for event in obs["events"])
+            self.unexplained_deaths += max(0, self.previous_alive - alive - kills)
+            self.inferred_ffa = self.unexplained_deaths >= 2
+        self.previous_alive = alive
+        if self.inferred_ffa and self.ffa_weights is not None:
+            self.weights = self.ffa_weights
+        return super().act(obs)
+
+    def tactical_mode(self, mode, obs, enemies):
+        return mode if self.inferred_ffa else super().tactical_mode(mode, obs, enemies)
+
+    def recovery_goal(self, obs, threats, goal, urgent):
+        return goal if self.inferred_ffa else super().recovery_goal(obs, threats, goal, urgent)
+
+
+class FightRead(SpecializedPolicies):
+    """Compare projected damage while near a reachable recovery waypoint."""
+    def tactical_mode(self, mode, obs, enemies):
+        mode = super().tactical_mode(mode, obs, enemies)
+        if self.inferred_ffa or not self.navigator or not enemies:
+            return mode
+        me = obs["self"]
+        arena = self.navigator.arena
+        shooters = [e for e in enemies if distance(me["pos"], e["pos"]) < 110
+                    and not arena.cover(me["pos"], e["pos"][:2])]
+        if len(shooters) < 2:
+            return mode
+        own_gun = me["weapons"][0]["stats"]
+        nearest = min(shooters, key=lambda e: distance(me["pos"], e["pos"]))
+        outgoing = own_gun["damage"] / max(.1, own_gun.get("cooldown", .25))
+        incoming = outgoing * len(shooters)
+        survival = me["hp"] / incoming
+        time_to_win = nearest["hp"] / outgoing
+        if survival < time_to_win:
+            previous_deadline = self.retreat_until
+            self.retreat_until = obs["t"] + 1
+            goal = super().recovery_goal(obs, tuple(e["pos"][:2] for e in shooters),
+                                         me["pos"], not me["in_zone"])
+            travel = distance(me["pos"], goal) / max(1, self.mech_config["walk_speed"])
+            if self.waypoint and travel < survival:
+                self.recovering = True
+                return "evade"
+            self.retreat_until = previous_deadline
+        return mode
+
+
 CONTROLLERS = {
     "early-rotation": EarlyRotation,
     "pressure-retreat": PressureRetreat,
@@ -256,6 +312,8 @@ CONTROLLERS = {
     "format-adaptive": FormatAdaptive,
     "health-recovery": HealthRecovery,
     "armed-recovery": ArmedRecovery,
+    "specialized-policies": SpecializedPolicies,
+    "fight-read": FightRead,
 }
 
 def compare(kit, incumbent, challenger, league, seed, controller=Bot, step=.1):
@@ -296,6 +354,16 @@ if __name__ == "__main__":
     weights = c["policies"][c["champion"]]
     league = [*STARTERS.values(), *(c["policies"][name] for name in STARTERS)]
     controller = CONTROLLERS[args.controller]
-    report = compare(args.kit, weights, weights, league, args.seed, controller, args.step)
+    candidate = weights
+    selection = {}
+    if issubclass(controller, SpecializedPolicies):
+        validation = c["validation"]
+        squad = max(validation, key=lambda name: validation[name]["squad"])
+        ffa = max(validation, key=lambda name: validation[name]["free_for_all"])
+        candidate = c["policies"][squad]
+        controller.ffa_weights = c["policies"][ffa]
+        selection = {"squad_policy": squad, "free_for_all_policy": ffa}
+    report = compare(args.kit, weights, candidate, league, args.seed, controller, args.step)
+    report.update(selection)
     report.update(controller=controller.__name__, checkpoint_seed=c["seed"], seed=args.seed)
     args.output.write_text(json.dumps(report, indent=2) + "\n")
