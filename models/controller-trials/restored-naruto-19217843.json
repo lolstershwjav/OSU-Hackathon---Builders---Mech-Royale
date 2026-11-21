@@ -43,6 +43,46 @@
         "combat_deaths": 1,
         "timeouts": 0
       }
+    },
+    {
+      "seed": 19217843,
+      "mode": "free_for_all",
+      "variant": "NoSwitch",
+      "points": 15,
+      "duration": 339,
+      "switch": null,
+      "fallbacks": 0,
+      "diagnostics": {
+        "zone_damage": 0,
+        "combat_damage": 3317.334956295059,
+        "blocked_steps": 2,
+        "pressure_s": 0,
+        "shots": 176,
+        "hits": 59,
+        "zone_deaths": 0,
+        "combat_deaths": 0,
+        "timeouts": 0
+      }
+    },
+    {
+      "seed": 19217843,
+      "mode": "free_for_all",
+      "variant": "ObservedNaruto",
+      "points": 15,
+      "duration": 339,
+      "switch": null,
+      "fallbacks": 0,
+      "diagnostics": {
+        "zone_damage": 0,
+        "combat_damage": 3317.334956295059,
+        "blocked_steps": 2,
+        "pressure_s": 0,
+        "shots": 176,
+        "hits": 59,
+        "zone_deaths": 0,
+        "combat_deaths": 0,
+        "timeouts": 0
+      }
     }
   ]
 }
