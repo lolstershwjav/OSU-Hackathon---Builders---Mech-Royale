@@ -656,12 +656,16 @@ func (b *Brain) step(o *Obs, act *Action) {
 	}
 	danger := false
 	crowd := 0
+	var crossfire []*Track
 	for _, t := range seen {
 		if t.Engage || now-t.HitMe < 4 {
 			danger = true
 		}
 		if t.Seen == now && (t.Engage || (t.LOS && t.Dist < 150)) {
 			crowd++
+		}
+		if t.Seen == now && t.Dist < 150 && b.W.Clear(b.eye(t), Vec3{x, y, me.Pos[2] + st.Height*0.5}) {
+			crossfire = append(crossfire, t)
 		}
 	}
 	if danger || now-b.lastHurt < 3 {
@@ -747,6 +751,10 @@ func (b *Brain) step(o *Obs, act *Action) {
 		mx, my = b.travel(me, zgx, zgy)
 		boost = (!me.InZone || now+tNeed >= deadline) && me.Energy > 5
 		mode = "zone"
+	case len(crossfire) >= 2 && !late && b.coverMove(o, crossfire, &mx, &my):
+		// RUC breaks multiple firing lanes before resuming normal combat.
+		boost = me.Energy > 10 && (mx != 0 || my != 0)
+		mode = "ruc"
 	case b.retreat && !finishing && !late:
 		if b.coverMove(o, seen, &mx, &my) {
 			boost = me.Energy > 10 && (mx != 0 || my != 0)
