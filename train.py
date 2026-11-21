@@ -1,5 +1,6 @@
 """Evolve tactical policies in a lightweight 2D placement simulator."""
 import argparse
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -149,6 +150,21 @@ def score(metrics):
             + .10 * 15 * metrics["squad_survival_rounds"] / 155)
 
 
+def policy_id(weights):
+    encoded = json.dumps(weights, separators=(",", ":")).encode()
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def recent_failures(prior, incumbent):
+    """Defer repeat challenges for three batches against the same default."""
+    if not prior:
+        return {}
+    incumbent_id = policy_id(incumbent)
+    return {key: {**entry, "remaining": entry["remaining"] - 1}
+            for key, entry in prior.get("recent_failures", {}).items()
+            if entry["incumbent"] == incumbent_id and entry["remaining"] > 0}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--seed", type=int, default=2027)
@@ -167,6 +183,7 @@ def main():
         current = {name: prior["policies"][name] for name in STARTERS}
         incumbent = prior["policies"][prior["champion"]]
         archive.extend([*current.values(), incumbent])
+    failures = recent_failures(prior, incumbent)
     crossover_wins = dict.fromkeys(MODES, 0)
     crossover_history = {
         mode: dict((prior or {}).get("crossover_history", {}).get(mode, {"attempts": 0, "wins": 0}))
@@ -180,8 +197,14 @@ def main():
             challengers = [parent] + [
                 [[round(max(-3, min(3, weight + rng.gauss(0, step))), 4)
                   for weight in row] for row in parent]
-                for _ in range(3)
+                for _ in range(2)
             ]
+            # Explore a change in one tactical rule without perturbing the other three.
+            focus = rng.randrange(len(MODES))
+            local_change = [list(row) for row in parent]
+            local_change[focus] = [round(max(-3, min(3, w + rng.gauss(0, step))), 4)
+                                   for w in parent[focus]]
+            challengers.append(local_change)
             # A row is one mode's scoring rule. Transplant one at a time so a
             # successful borrowing can be attributed to a specific behavior.
             donor_name = rng.choice([other for other in current if other != name])
@@ -210,6 +233,8 @@ def main():
     candidates = {**current, **{f"{name}_initial": w for name, w in STARTERS.items()}}
     results = {name: evaluate(weights, league, validation) for name, weights in candidates.items()}
     challengers = [name for name, weights in candidates.items() if weights != incumbent]
+    fresh = [name for name in challengers if policy_id(candidates[name]) not in failures]
+    challengers = fresh or challengers
     challenger = max(challengers, key=lambda name: score(results[name]))
     champion = challenger
     promotion = None
@@ -232,6 +257,12 @@ def main():
                      "incumbent_metrics": baseline, "challenger_metrics": trial,
                      "promoted": promoted, "seeds": gate_seeds}
         if not promoted:
+            failures[policy_id(candidates[challenger])] = {
+                "incumbent": policy_id(incumbent), "remaining": 3,
+                "squad_delta": trial["squad"] - baseline["squad"],
+                "free_for_all_delta": trial["free_for_all"] - baseline["free_for_all"],
+                "combined_delta": score(trial) - score(baseline),
+            }
             champion = next((name for name, weights in candidates.items() if weights == incumbent),
                             "incumbent")
             candidates[champion] = incumbent
@@ -240,13 +271,13 @@ def main():
     total = args.generations + (prior.get("total_generations", prior["generations"]) if prior else 0)
     report = {"seed": args.seed, "generations": args.generations, "total_generations": total,
               "validation_seeds": validation, "champion": champion, "policies": candidates,
-              "validation": results, "promotion": promotion,
+              "validation": results, "promotion": promotion, "recent_failures": failures,
               "crossover_wins": crossover_wins, "crossover_history": crossover_history}
     args.output.parent.mkdir(parents=True, exist_ok=True)
     temporary = args.output.with_suffix(args.output.suffix + ".tmp")
     temporary.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     temporary.replace(args.output)
-    print(json.dumps({"champion": champion, "validation": results, "promotion": promotion,
+    print(json.dumps({"champion": champion, "validation": results, "promotion": promotion, "recent_failures": failures,
               "crossover_wins": crossover_wins, "crossover_history": crossover_history}, indent=2))
 
 
