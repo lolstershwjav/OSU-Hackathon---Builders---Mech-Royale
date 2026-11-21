@@ -1,0 +1,205 @@
+{
+  "step_s": 0.1,
+  "paired": [
+    {
+      "seed": 12033441,
+      "profile": "pursuit",
+      "format": "squad",
+      "baseline": {
+        "points": 2,
+        "seconds": 274.6,
+        "zone_damage": 0,
+        "combat_damage": 1485.0,
+        "blocked_steps": 0,
+        "pressure_s": 8.399999999999986,
+        "shots": 24,
+        "hits": 23,
+        "zone_deaths": 0,
+        "combat_deaths": 1,
+        "timeouts": 0
+      },
+      "candidate": {
+        "points": 2,
+        "seconds": 274.6,
+        "zone_damage": 0,
+        "combat_damage": 1485.0,
+        "blocked_steps": 0,
+        "pressure_s": 8.399999999999986,
+        "shots": 24,
+        "hits": 23,
+        "zone_deaths": 0,
+        "combat_deaths": 1,
+        "timeouts": 0
+      }
+    },
+    {
+      "seed": 12033441,
+      "profile": "pursuit",
+      "format": "free_for_all",
+      "baseline": {
+        "points": 15,
+        "seconds": 362.1,
+        "zone_damage": 0,
+        "combat_damage": 5285.785699056078,
+        "blocked_steps": 0,
+        "pressure_s": 0,
+        "shots": 167,
+        "hits": 94,
+        "zone_deaths": 0,
+        "combat_deaths": 0,
+        "timeouts": 0
+      },
+      "candidate": {
+        "points": 2,
+        "seconds": 142.20000000000002,
+        "zone_damage": 0,
+        "combat_damage": 3160.34283,
+        "blocked_steps": 0,
+        "pressure_s": 0,
+        "shots": 48,
+        "hits": 12,
+        "zone_deaths": 0,
+        "combat_deaths": 1,
+        "timeouts": 0
+      }
+    },
+    {
+      "seed": 11127763,
+      "profile": "flank",
+      "format": "squad",
+      "baseline": {
+        "points": 1,
+        "seconds": 267.5,
+        "zone_damage": 1520.0,
+        "combat_damage": 0,
+        "blocked_steps": 0,
+        "pressure_s": 0,
+        "shots": 0,
+        "hits": 0,
+        "zone_deaths": 1,
+        "combat_deaths": 0,
+        "timeouts": 0
+      },
+      "candidate": {
+        "points": 1,
+        "seconds": 267.5,
+        "zone_damage": 1520.0,
+        "combat_damage": 0,
+        "blocked_steps": 0,
+        "pressure_s": 0,
+        "shots": 0,
+        "hits": 0,
+        "zone_deaths": 1,
+        "combat_deaths": 0,
+        "timeouts": 0
+      }
+    },
+    {
+      "seed": 11127763,
+      "profile": "flank",
+      "format": "free_for_all",
+      "baseline": {
+        "points": 2,
+        "seconds": 209.4,
+        "zone_damage": 1458.0,
+        "combat_damage": 0,
+        "blocked_steps": 1,
+        "pressure_s": 0,
+        "shots": 0,
+        "hits": 0,
+        "zone_deaths": 1,
+        "combat_deaths": 0,
+        "timeouts": 0
+      },
+      "candidate": {
+        "points": 2,
+        "seconds": 209.4,
+        "zone_damage": 1458.0,
+        "combat_damage": 0,
+        "blocked_steps": 1,
+        "pressure_s": 0,
+        "shots": 0,
+        "hits": 0,
+        "zone_deaths": 1,
+        "combat_deaths": 0,
+        "timeouts": 0
+      }
+    },
+    {
+      "seed": 16360409,
+      "profile": "zone",
+      "format": "squad",
+      "baseline": {
+        "points": 5,
+        "seconds": 209.60000000000002,
+        "zone_damage": 0,
+        "combat_damage": 3008.7000000000003,
+        "blocked_steps": 0,
+        "pressure_s": 21.500000000000036,
+        "shots": 37,
+        "hits": 35,
+        "zone_deaths": 0,
+        "combat_deaths": 1,
+        "timeouts": 0
+      },
+      "candidate": {
+        "points": 4,
+        "seconds": 270.90000000000003,
+        "zone_damage": 0,
+        "combat_damage": 1571.3999999999996,
+        "blocked_steps": 0,
+        "pressure_s": 1.8000000000000005,
+        "shots": 23,
+        "hits": 23,
+        "zone_deaths": 0,
+        "combat_deaths": 1,
+        "timeouts": 0
+      }
+    },
+    {
+      "seed": 16360409,
+      "profile": "zone",
+      "format": "free_for_all",
+      "baseline": {
+        "points": 3,
+        "seconds": 206.3,
+        "zone_damage": 1461.0,
+        "combat_damage": 0,
+        "blocked_steps": 0,
+        "pressure_s": 0,
+        "shots": 0,
+        "hits": 0,
+        "zone_deaths": 1,
+        "combat_deaths": 0,
+        "timeouts": 0
+      },
+      "candidate": {
+        "points": 3,
+        "seconds": 205.4,
+        "zone_damage": 1459.5,
+        "combat_damage": 0,
+        "blocked_steps": 1,
+        "pressure_s": 0,
+        "shots": 0,
+        "hits": 0,
+        "zone_deaths": 1,
+        "combat_deaths": 0,
+        "timeouts": 0
+      }
+    }
+  ],
+  "placement_means": {
+    "squad": {
+      "baseline": 2.6666666666666665,
+      "candidate": 2.3333333333333335
+    },
+    "free_for_all": {
+      "baseline": 6.666666666666667,
+      "candidate": 2.3333333333333335
+    }
+  },
+  "passed": false,
+  "controller": "FormatAdaptive",
+  "checkpoint_seed": 1795280806152769773,
+  "seed": 1795280806152769773
+}
