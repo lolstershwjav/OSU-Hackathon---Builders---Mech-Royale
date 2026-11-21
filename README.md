@@ -255,3 +255,7 @@ In the squad map-backed comparison, the contextual-upgrade branch changed placem
 In the free-for-all map-backed comparison, the contextual-upgrade branch changed placement from 4.00 to 4.00 across 1 paired seeds.
 
 Both pinned branches passed all 300 local official-kit replay observations.
+
+### Generation 3500 checkpoint
+
+This update archives 3 distinct policy matrices. On the paired fast simulator promotion seeds, Guardian changed squad placement by +0.03 points and free-for-all placement by -0.36 points. The active fast trainer policy is Scavenger Initial.
