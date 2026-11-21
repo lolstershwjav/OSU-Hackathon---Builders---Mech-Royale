@@ -52,6 +52,10 @@ type Brain struct {
 	pathAt   float64
 	pathI    int
 
+	rotationAt    float64
+	rotationGoal  [2]float64
+	rotationExtra float64
+
 	strafe      float64
 	strafeUntil float64
 
@@ -464,6 +468,30 @@ func (b *Brain) zoneGoal(z *Zone, x, y float64) (float64, float64) {
 	return z.NextCenter[0] + dx/d*r, z.NextCenter[1] + dy/d*r
 }
 
+// rotationDelay adds time for a mapped detour beyond the existing travel allowance.
+func (b *Brain) rotationDelay(x, y, gx, gy, speed float64) float64 {
+	if b.rotationAt == 0 || b.now >= b.rotationAt || hyp(gx-b.rotationGoal[0], gy-b.rotationGoal[1]) > 5 {
+		b.rotationAt = b.now + 2.5
+		b.rotationGoal = [2]float64{gx, gy}
+		b.rotationExtra = 0
+		if !b.W.LineWalkable(x, y, gx, gy) {
+			path, reached := b.W.Path(x, y, gx, gy, 12000)
+			if reached {
+				px, py := x, y
+				length := 0.0
+				for _, cell := range path {
+					nx, ny := b.W.CellPos(int(cell))
+					length += hyp(nx-px, ny-py)
+					px, py = nx, ny
+				}
+				length += hyp(gx-px, gy-py)
+				b.rotationExtra = math.Max(0, length*1.15-hyp(gx-x, gy-y)*1.45)
+			}
+		}
+	}
+	return b.rotationExtra / speed
+}
+
 func hasWeapon(ws []*WeaponState, kind string) (int, *WeaponState) {
 	for i, w := range ws {
 		if w != nil && w.Kind == kind {
@@ -734,6 +762,9 @@ func (b *Brain) step(o *Obs, act *Action) {
 	zdist := hyp(zgx-x, zgy-y)
 	tNeed := zdist*1.45/st.WalkSpeed + 4
 	deadline := b.zoneDeadline(z, x, y, 8)
+	if zdist > 2 && me.InZone && deadline-now-tNeed <= 75 && now+tNeed+3 < deadline {
+		tNeed += b.rotationDelay(x, y, zgx, zgy, st.WalkSpeed)
+	}
 	zoneMust := !me.InZone || now+tNeed+3 >= deadline
 	zoneShould := now+tNeed+14 >= deadline
 
