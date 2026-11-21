@@ -26,9 +26,11 @@ def angular_error(a, b):
 class Bot:
     name = "Mech Royale Policy League"
 
-    def __init__(self, hello):
-        report = json.loads((ROOT / "models/trained.json").read_text(encoding="utf-8"))
-        self.weights = report["policies"][os.getenv("MECH_POLICY", report["champion"])]
+    def __init__(self, hello, *, weights=None, arena=None):
+        if weights is None:
+            report = json.loads((ROOT / "models/trained.json").read_text(encoding="utf-8"))
+            weights = report["policies"][os.getenv("MECH_POLICY", report["champion"])]
+        self.weights = weights
         self.pickup_radius = hello["config"]["loot"]["pickup_radius"]
         self.last_hit = -100.0
         self.last_bearing = None
@@ -37,7 +39,9 @@ class Bot:
         self.blocked = 0
         self.navigator = None
         self.mech_config = hello["config"]["mech"]
-        if os.getenv("MECH_NAV") != "local":
+        if arena is not None:
+            self.navigator = Navigator(arena)
+        elif os.getenv("MECH_NAV") != "local":
             try:
                 self.navigator = Navigator(Arena(hello["map"]["dir"]))
             except (OSError, KeyError, ValueError):

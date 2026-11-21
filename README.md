@@ -34,6 +34,36 @@ MECH_NAV=local python3 "$KIT/check/check.py" -- python3 -u bot.py
 
 The arena benchmark found a 58.1 m walkable route for a blocked 37.4 m direct path. The hybrid and local-only variants each answered 300/300 official replay observations on time. Measured host p50/p99 were 0.5/5.2 ms for hybrid and 0.2/0.5 ms for local-only. Continuous self-play still trains the tactical policies in the 2D simulator. That simulator does not model the 3D navigation upgrade. Actual placement impact and the Docker build remain unverified.
 
+## Map-backed self-play and practice calibration
+
+Use the fast simulator for broad policy search, then run a shortlist through the production controller on the official terrain. The second simulator uses the kit's match configuration, map and shrinking-zone phases. It approximates terrain movement, line of sight, gun projectiles, cube pickups, health, and boost energy. Its squad fields four easy, four medium, four hard, and three expert proxies that share sightings and escalate pressure. Seeds rotate between pursuit, flank, and zone-oriented squads. Free-for-all uses 16 instances of the actual bot, with opponents drawn from a fixed policy pool.
+
+```sh
+python3 arena_sim.py --kit "$KIT" --policy scavenger_initial --policy duelist   --seeds 6 --mutations 6 --output arena-report.json
+```
+
+The command compares every candidate with the checkpoint default on the same seeds using both simulators. `--mutations` adds up to two candidates from a separate screening set. Arena eligibility requires higher squad placement, no free-for-all drop, and the existing combined-score improvement in the fast simulator. It writes results and candidate weights for review. Use `--format squad` to investigate squad losses in isolation. Reports include per-seed placement, survival, zone and combat deaths, damage by source, stalled movement, time under pressure, shots, hits, and misses.
+
+This simulator approximates the official engine. It does not reproduce the private house AI, official spawns, jump physics, loot weapons, upgrades, or canopy visibility. Its default decision step is 0.5 s. Use `--step 0.1` for a slower run closer to the official decision frequency. The A* controller still uses its runtime time budget, so repeated wall-clock runs can differ slightly. Shortened runs via `--duration` are diagnostic and can end before the zone closes.
+
+After you have official squad practice results for the exact policies in the report, record the policy name, tested Git commit, and score in JSON:
+
+```json
+[
+  {"policy": "incumbent", "commit": "<tested commit>", "practice_points": 0.0}
+]
+```
+
+Replace the example score with the actual result. Compare the measured points against both local simulators with:
+
+```sh
+python3 arena_calibrate.py --arena-report arena-report.json --official official-results.json
+```
+
+The comparison reports mean absolute error and pairwise rank agreement. It needs at least two models with distinct scores before it can assess ordering. Only the official practice scorer can establish leaderboard placement.
+
+The [first map-backed benchmark](models/arena-benchmark.json) compared the generation 672 default with Initial Scavenger on three shared seeds at a 1 s decision step. The default led squad placement (2.67 vs. 1.67), and Initial Scavenger led free-for-all (9.00 vs. 6.67). Two of the default's three squad losses came from zone damage. This small diagnostic run did not produce an eligible replacement.
+
 ## Train and compare policies
 
 ```sh
