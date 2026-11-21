@@ -1878,9 +1878,18 @@ func (b *Brain) chooseLoot(o *Obs, hpFrac float64, danger bool) *lootChoice {
 	if me.Cubes >= b.cubeCap() {
 		cubeV = 25
 	}
+	thresholds := b.Cfg.Cubes.UpgradeThresholds
+	nearFirstUpgrade := len(thresholds) > 0 && me.Cubes+1 == thresholds[0]
 	for _, c := range b.cubes {
-		if hyp(c.Pos[0]-x, c.Pos[1]-y) < math.Max(60, b.P.LootRadius*0.7) {
-			consider("cube", c.ID, c.Pos, cubeV)
+		distance := hyp(c.Pos[0]-x, c.Pos[1]-y)
+		if distance < math.Max(60, b.P.LootRadius*0.7) {
+			value := cubeV
+			if nearFirstUpgrade && !danger && distance <= 40 &&
+				math.Abs(c.Pos[2]-me.Pos[2]) < 3 && b.zonePenalty(z, c.Pos[0], c.Pos[1]) == 0 &&
+				b.W.LineWalkable(x, y, c.Pos[0], c.Pos[1]) {
+				value *= 1.9
+			}
+			consider("cube", c.ID, c.Pos, value)
 		}
 	}
 	farmHP := 0.7
