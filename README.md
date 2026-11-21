@@ -159,3 +159,7 @@ Run `python3 screen_audit.py --archive ../mech-continuous --kit ../mechfight-kit
 ### Diagnose a squad and free-for-all tradeoff
 
 Run `python3 tactic_audit.py --audit models/screen-audit.json --kit ../mechfight-kit --candidate clear_rejection --seed UNIQUE_INTEGER --output models/tactic-audit.json`. The audit adds each changed tactic row to the incumbent and independently reverts that row in the challenger. Every variant uses six shared seeds at 0.1-second decisions with the original audit league. Compare per-seed placement changes with survival time, zone damage, combat damage, pressure and blocked movement. A gain in the add test and a loss in the revert test support attribution to that row. A mixed result can indicate interactions or seed sensitivity. Repeat with a new seed to confirm.
+
+### Generation 1456 checkpoint
+
+The incumbent led the latest fast validation batch with 0.44 mean squad placement points and 11.17 free-for-all points. In the separate 36-seed promotion check, Initial Guardian gained free-for-all points but fell from 0.61 to 0.14 in squad, so the incumbent retained the default. The historical archive includes the distinct matrices added since generation 1302. These are simulator scores.
