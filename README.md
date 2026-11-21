@@ -185,3 +185,7 @@ The archive preserves 114 distinct matrices first observed after generation 2492
 ### Generation 3066 checkpoint
 
 The paired fast simulator gate retained Initial Scavenger. The archived holdout uses three matched map seeds at 0.1-second decisions. The no-switch adapter averaged 5.33 squad and 9.00 free-for-all. The two-elimination handoff averaged 4.67 squad and 6.33 free-for-all. Neither switched in squad, and unequal response-time fallbacks limit interpretation of the squad result. These are simulator findings.
+
+### Generation 3136 checkpoint
+
+Initial Scavenger retained the default. On paired fast promotion seeds, trained Scavenger gained 1.97 free-for-all points and lost 0.08 squad points. The archive preserves 15 newly observed policy matrices. All scores are from simulation.
