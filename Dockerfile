@@ -24,7 +24,7 @@ COPY --from=naruto-builder /build/naruto/naruto-bin /app/naruto-bin
 # Copy Python bot files
 COPY bob_mix_improved.py /app/
 COPY tsunade.py /app/
-COPY tsunade_ref.py /app/
+COPY lance_bot.py /app/
 COPY navigation.py /app/
 COPY policy.py /app/
 COPY mechfight.py /app/
