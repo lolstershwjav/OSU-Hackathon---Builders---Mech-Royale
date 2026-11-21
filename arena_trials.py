@@ -6,6 +6,8 @@ from pathlib import Path
 from statistics import mean
 
 from arena_sim import Bot, PROFILES, Simulator
+from bot import DIRECTIONS, distance
+from navigation import Navigator
 from train import STARTERS
 
 
@@ -30,6 +32,38 @@ class PressureRetreat(Bot):
         if nearby >= 2 and now - self.last_hit < 1.5:
             self.retreat_until = now + 3
         return "evade" if now < self.retreat_until else mode
+
+
+class CoverRecovery(PressureRetreat):
+    waypoint = None
+
+    def recovery_goal(self, obs, threats, goal, urgent):
+        now = obs["t"]
+        if urgent or now >= self.retreat_until or not self.navigator:
+            self.waypoint = None
+            return goal
+        me, zone = obs["self"], obs["zone"]
+        x, y, z = position = me["pos"]
+        arena = self.navigator.arena
+
+        def safe(point):
+            return (distance(point, zone["next_center"]) < zone["next_radius"] - 7
+                    and all(arena.cover(point, threat) for threat in threats))
+
+        if self.waypoint and safe(self.waypoint):
+            return self.waypoint
+        self.waypoint = None
+        if not threats:
+            return position
+        shape = Navigator.shape({**self.mech_config, **me["stats"]})
+        for reach in (8, 16, 24):
+            for dx, dy in DIRECTIONS[::2]:
+                px, py = x + reach * dx, y + reach * dy
+                point = (px, py, arena.ground(px, py))
+                if safe(point) and arena.segment(position, point, shape):
+                    self.waypoint = point
+                    return point
+        return goal
 
 
 def compare(kit, incumbent, challenger, league, seed, controller=Bot, step=.1):
@@ -64,13 +98,14 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, required=True)
     parser.add_argument("--step", type=float, default=.1)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--controller", choices=("early-rotation", "pressure-retreat"),
+    parser.add_argument("--controller", choices=("early-rotation", "pressure-retreat", "cover-recovery"),
                         default="early-rotation")
     args = parser.parse_args()
     c = json.loads(args.checkpoint.read_text())
     weights = c["policies"][c["champion"]]
     league = [*STARTERS.values(), *(c["policies"][name] for name in STARTERS)]
-    controller = {"early-rotation": EarlyRotation, "pressure-retreat": PressureRetreat}[args.controller]
+    controller = {"early-rotation": EarlyRotation, "pressure-retreat": PressureRetreat,
+                  "cover-recovery": CoverRecovery}[args.controller]
     report = compare(args.kit, weights, weights, league, args.seed, controller, args.step)
     report.update(controller=controller.__name__, checkpoint_seed=c["seed"], seed=args.seed)
     args.output.write_text(json.dumps(report, indent=2) + "\n")

@@ -122,6 +122,9 @@ class Bot:
     def tactical_mode(self, mode, obs, enemies):
         return mode
 
+    def recovery_goal(self, obs, threats, goal, urgent):
+        return goal
+
     def act(self, obs):
         me = obs["self"]
         x, y, z = position = me["pos"]
@@ -193,6 +196,7 @@ class Bot:
                     candidates.append(point)
             if candidates:
                 goal = min(candidates, key=lambda point: distance(point, goal))
+        goal = self.recovery_goal(obs, threats, goal, urgent or next_margin < 18 or zone["next_radius"] < 18)
         move = self.movement(obs, goal, enemy, urgent, threats)
         action = {"tick": obs["tick"], "move": move, "fire": [False, False]}
         action["boost"] = bool(any(move) and me["energy"] > 23
