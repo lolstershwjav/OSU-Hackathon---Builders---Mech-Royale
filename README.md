@@ -271,3 +271,7 @@ In 2 paired free-for-all map-backed seeds, the zone-stall experiment scored 4.00
 The experimental recovery tests short map-checked headings toward the safe zone when stalled during urgent rotation. The local official-kit replay passed 300 observations at 1.0 ms host p99.
 
 On the seed that motivated the change, both variants recorded 1,246 blocked movement steps and died to the zone. This experiment did not resolve the stall and is archived as a patch for reproduction.
+
+### Generation 3556 checkpoint
+
+This update archives 3 distinct policy matrices. On the paired fast simulator promotion seeds, Scavenger changed squad placement by -0.14 points and free-for-all placement by -0.56 points. The active fast trainer policy is Scavenger Initial.
