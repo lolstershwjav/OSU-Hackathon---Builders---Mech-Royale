@@ -807,7 +807,7 @@ func (b *Brain) step(o *Obs, act *Action) {
 			}
 		}
 	case zoneShould && zdist > 2:
-		mx, my = b.travel(me, zgx, zgy)
+		mx, my = b.coveredRotation(o, seen, zgx, zgy)
 		mode = "zone"
 	default:
 		lc := b.chooseLoot(o, hpFrac, danger)
@@ -2012,4 +2012,40 @@ func (b *Brain) showsBack(t *Track, x, y float64) bool {
 		arc = 180
 	}
 	return math.Abs(angDiff(t.Aim[0], math.Atan2(y-t.Pos[1], x-t.Pos[0]))) > arc*math.Pi/360+0.1
+}
+
+func (b *Brain) coveredRotation(o *Obs, seen []*Track, gx, gy float64) (float64, float64) {
+	me := &o.Self
+	x, y := me.Pos[0], me.Pos[1]
+	dist := hyp(gx-x, gy-y)
+	if dist < 22 || len(seen) == 0 || !b.W.LineWalkable(x, y, gx, gy) {
+		return b.travel(me, gx, gy)
+	}
+	exposure := func(px, py float64) int {
+		score := 0
+		for _, fraction := range [...]float64{0.5, 1} {
+			sx, sy := x+(px-x)*fraction, y+(py-y)*fraction
+			p := Vec3{sx, sy, b.W.WalkAt(sx, sy) + me.Stats.EyeHeight}
+			for _, enemy := range seen {
+				if b.now-enemy.Seen <= 1 && hyp(enemy.Pos[0]-sx, enemy.Pos[1]-sy) < 160 && b.W.Clear(b.eye(enemy), p) {
+					score++
+				}
+			}
+		}
+		return score
+	}
+	dx, dy := (gx-x)/dist, (gy-y)/dist
+	fx, fy := x+dx*18, y+dy*18
+	best := exposure(fx, fy)
+	bx, by := gx, gy
+	for _, side := range [...]float64{-10, 10} {
+		px, py := fx-dy*side, fy+dx*side
+		if !b.W.LineWalkable(x, y, px, py) || b.zonePenalty(&o.Zone, px, py) > b.zonePenalty(&o.Zone, fx, fy) {
+			continue
+		}
+		if score := exposure(px, py); score < best {
+			bx, by, best = px, py, score
+		}
+	}
+	return b.travel(me, bx, by)
 }
