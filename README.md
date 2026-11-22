@@ -4,13 +4,13 @@ A placement-first Python bot for the 16-mech Builders Mech Royale. It uses a tra
 
 ## Competition runtime
 
-The root Dockerfile runs the [team 2.3% runtime at `7337bff`](https://github.com/charliescull/mech-royale-bot/tree/7337bffd4228c4b042273f5795dff889c918d2f4) from `team23/`. Giddy drives practice and free-for-all by default, with the team’s Python controller as fallback. The upstream 140 m EndGhost threshold and 240 m squad laser search radius are retained. Naruto adds detour-aware zone timing and, before EndGhost, its situational upgrade picks, safe first-upgrade cube priority, and narrow laser-release rule. The original Naruto runtime is available through `bob_mix.py` for comparisons.
+The root Dockerfile runs the [public team 2.3% runtime at `7337bff`](https://github.com/charliescull/mech-royale-bot/tree/7337bffd4228c4b042273f5795dff889c918d2f4) from `team23/`. Giddy drives by default, with the team’s Python controller as fallback. The baseline has a 140 m late-hide threshold and upstream upgrade, rotation, cube, and laser settings. The Naruto runtime is available through `bob_mix.py` for comparisons.
 
 ## What each file does
 
 | File | Purpose |
 | --- | --- |
-| `Dockerfile` | Builds the merged Go controller and starts the team 2.3% Python wrapper. |
+| `Dockerfile` | Builds the Giddy Go controller and starts the team 2.3% Python wrapper. |
 | `bot.py` | Loads tactical weights, chooses objectives, and handles local movement and combat. |
 | `navigation.py` | Reads the official arena, caches traversable surfaces and edges, and plans routes with bounded A*. |
 | `check_navigation.py` | Checks geometry and benchmarks a blocked route on the official arena. |

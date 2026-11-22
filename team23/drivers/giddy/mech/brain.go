@@ -2,10 +2,10 @@ package mech
 
 import (
 	"math"
-	"math/rand"
 	"os"
-	"sort"
 	"strconv"
+	"math/rand"
+	"sort"
 )
 
 const lat = 0.075
@@ -50,10 +50,6 @@ type Brain struct {
 	pathGoal [2]float64
 	pathAt   float64
 	pathI    int
-
-	rotationAt    float64
-	rotationGoal  [2]float64
-	rotationExtra float64
 
 	strafe      float64
 	strafeUntil float64
@@ -439,30 +435,6 @@ func (b *Brain) zoneGoal(z *Zone, x, y float64) (float64, float64) {
 	return z.NextCenter[0] + dx/d*r, z.NextCenter[1] + dy/d*r
 }
 
-// rotationDelay adds time for a mapped detour beyond the existing travel allowance.
-func (b *Brain) rotationDelay(x, y, gx, gy, speed float64) float64 {
-	if b.rotationAt == 0 || b.now >= b.rotationAt || hyp(gx-b.rotationGoal[0], gy-b.rotationGoal[1]) > 5 {
-		b.rotationAt = b.now + 2.5
-		b.rotationGoal = [2]float64{gx, gy}
-		b.rotationExtra = 0
-		if !b.W.LineWalkable(x, y, gx, gy) {
-			path, reached := b.W.Path(x, y, gx, gy, 12000)
-			if reached {
-				px, py := x, y
-				length := 0.0
-				for _, cell := range path {
-					nx, ny := b.W.CellPos(int(cell))
-					length += hyp(nx-px, ny-py)
-					px, py = nx, ny
-				}
-				length += hyp(gx-px, gy-py)
-				b.rotationExtra = math.Max(0, length*1.15-hyp(gx-x, gy-y)*1.45)
-			}
-		}
-	}
-	return b.rotationExtra / speed
-}
-
 func hasWeapon(ws []*WeaponState, kind string) (int, *WeaponState) {
 	for i, w := range ws {
 		if w != nil && w.Kind == kind {
@@ -546,44 +518,6 @@ func (b *Brain) step(o *Obs, act *Action) {
 
 	if o.Offer != nil && len(o.Offer.Choices) > 0 {
 		p := pickUpgrade(o.Offer, b.P.LaserUp, b.P.NanoUp, b.P.SpeedUp)
-		if !b.notPractice && !b.endGhostOn && len(me.Upgrades) == 0 && o.Offer.Choices[p].ID == "nanites" {
-			desired := ""
-			for _, enemy := range o.Mechs {
-				if enemy.Kind == "mech" && hyp(enemy.Pos[0]-x, enemy.Pos[1]-y) <= 6 {
-					desired = "gyros"
-					break
-				}
-			}
-			if now <= 3 && hpFrac >= 0.98 && len(o.Mechs) == 0 {
-				desired = "servos"
-			}
-			for i, choice := range o.Offer.Choices {
-				if choice.ID == desired {
-					p = i
-					break
-				}
-			}
-		}
-		if !b.notPractice && !b.endGhostOn && len(me.Upgrades) == 1 && hpFrac >= 0.98 && len(o.Mechs) == 0 {
-			_, laser := hasWeapon(me.Weapons, "laser")
-			preferred := ""
-			if laser != nil {
-				switch o.Offer.Choices[p].ID {
-				case "armor":
-					preferred = "laser_damage"
-				case "nanites":
-					preferred = "gun_damage"
-				}
-			}
-			if preferred != "" {
-				for i, choice := range o.Offer.Choices {
-					if choice.ID == preferred {
-						p = i
-						break
-					}
-				}
-			}
-		}
 		act.Pick = &p
 	}
 
@@ -763,9 +697,6 @@ func (b *Brain) step(o *Obs, act *Action) {
 	zdist := hyp(zgx-x, zgy-y)
 	tNeed := zdist*1.45/st.WalkSpeed + 4
 	deadline := b.zoneDeadline(z, x, y, 8)
-	if zdist > 2 && me.InZone && deadline-now-tNeed <= 75 && now+tNeed+3 < deadline {
-		tNeed += b.rotationDelay(x, y, zgx, zgy, st.WalkSpeed)
-	}
 	zoneMust := !me.InZone || now+tNeed+3 >= deadline
 	zoneShould := now+tNeed+14 >= deadline
 
@@ -1094,9 +1025,6 @@ func (b *Brain) step(o *Obs, act *Action) {
 					}
 					if b.P.Backstab > 0 && b.showsBack(target, x, y) {
 						dmg *= b.rearMult()
-					}
-					if b.pracOn && !b.endGhostOn && dist >= 80 && dist <= 95 && w.Charge <= full*0.30 && target.HP <= 0.15*target.MaxHP {
-						lk = 0.90
 					}
 					if dmg*lk >= target.HP && math.Abs(angDiff(hy, me.Aim[0])) < tolY*0.9 && math.Abs(hp-me.Aim[1]) < tolP {
 						aim = [2]float64{hy, hp}
@@ -1814,18 +1742,9 @@ func (b *Brain) chooseLoot(o *Obs, hpFrac float64, danger bool) *lootChoice {
 	if me.Cubes >= b.cubeCap() {
 		cubeV = 25
 	}
-	thresholds := b.Cfg.Cubes.UpgradeThresholds
-	nearFirstUpgrade := len(thresholds) > 0 && me.Cubes+1 == thresholds[0]
 	for _, c := range b.cubes {
-		distance := hyp(c.Pos[0]-x, c.Pos[1]-y)
-		if distance < math.Max(60, b.P.LootRadius*0.7) {
-			value := cubeV
-			if !b.notPractice && !b.endGhostOn && nearFirstUpgrade && !danger && distance <= 40 &&
-				math.Abs(c.Pos[2]-me.Pos[2]) < 3 && b.zonePenalty(z, c.Pos[0], c.Pos[1]) == 0 &&
-				b.W.LineWalkable(x, y, c.Pos[0], c.Pos[1]) {
-				value *= 1.9
-			}
-			consider("cube", c.ID, c.Pos, value)
+		if hyp(c.Pos[0]-x, c.Pos[1]-y) < math.Max(60, b.P.LootRadius*0.7) {
+			consider("cube", c.ID, c.Pos, cubeV)
 		}
 	}
 	farmHP := 0.7

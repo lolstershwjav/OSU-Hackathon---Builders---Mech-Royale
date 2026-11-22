@@ -361,3 +361,4 @@ class ThirdPartyAgent(Agent):
             self._last = plan_.get("approach")
             w.log("third", approach=self._last, why=str(plan_.get("why", ""))[:80], d=round(plan_.get("d_target") or 0))
         return bid, plan(list(mv), aim, fire, boost=not commit and w.me["energy"] > 40, note="3rd " + str(plan_.get("approach")))
+
