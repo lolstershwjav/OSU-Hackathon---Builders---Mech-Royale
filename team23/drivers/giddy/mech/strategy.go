@@ -118,11 +118,7 @@ func (b *Brain) lootSafety(o *Obs, pos Vec3, distance, hpFrac float64) float64 {
 	}
 	safety := 1 - b.tactics.acousticRisk(b.now, pos)
 	if hpFrac < 0.75 || distance > 30 {
-		me := &o.Self
-		mid := Vec3{(me.Pos[0] + pos[0]) * 0.5, (me.Pos[1] + pos[1]) * 0.5, 0}
-		mid[2] = b.W.WalkAt(mid[0], mid[1])
-		exposure := max(b.exposureAt(o, pos, 95, nil), b.exposureAt(o, mid, 95, nil))
-		safety /= 1 + 0.6*float64(exposure)
+		safety /= 1 + 0.6*float64(b.exposureAt(o, pos, 95, nil))
 	}
 	return safety
 }
@@ -152,7 +148,7 @@ func (b *Brain) safeDrop(o *Obs, drop *Drop, hpFrac float64, danger bool) bool {
 	}
 	travel := d / me.Stats.WalkSpeed
 	end := math.Max(travel, drop.LandsIn) + math.Max(0, drop.CaptureS-drop.Progress)
-	return drop.LandsIn <= travel+2 &&
+	return drop.LandsIn <= travel+4 &&
 		b.now+end+6 < b.zoneDeadline(&o.Zone, drop.Pos[0], drop.Pos[1], 10) &&
 		b.tactics.acousticRisk(b.now, drop.Pos) < 0.22 &&
 		b.exposureAt(o, drop.Pos, 125, nil) == 0

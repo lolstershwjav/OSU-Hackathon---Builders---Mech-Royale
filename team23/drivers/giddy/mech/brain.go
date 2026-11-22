@@ -1121,12 +1121,6 @@ func (b *Brain) step(o *Obs, act *Action) {
 						break
 					}
 				}
-				if w.Charge >= w.Stats.MinCharge && (mode == "cover" || mode == "zone") &&
-					crowd >= 2 && w.Charge >= full*0.55 && slew(hy, hp) {
-					aim = [2]float64{hy, hp}
-					act.Fire[i] = false
-					break
-				}
 				if w.Charge < full-0.051 {
 					act.Fire[i] = true
 					if w.Charge > full*0.45 {
@@ -1880,7 +1874,7 @@ func (b *Brain) chooseLoot(o *Obs, hpFrac float64, danger bool) *lootChoice {
 	for i := range o.Drops {
 		d := &o.Drops[i]
 		if b.safeDrop(o, d, hpFrac, danger) {
-			consider("drop", d.ID, d.Pos, 140+120*(1-hpFrac))
+			consider("drop", d.ID, d.Pos, 260)
 		}
 	}
 	if best == nil {
