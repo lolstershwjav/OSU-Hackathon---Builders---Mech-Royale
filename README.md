@@ -259,3 +259,15 @@ Both pinned branches passed all 300 local official-kit replay observations.
 ### Generation 3500 checkpoint
 
 This update archives 3 distinct policy matrices. On the paired fast simulator promotion seeds, Guardian changed squad placement by +0.03 points and free-for-all placement by -0.36 points. The active fast trainer policy is Scavenger Initial.
+
+### Generation 3542 checkpoint
+
+This update archives 9 distinct policy matrices. On the paired fast simulator promotion seeds, Duelist changed squad placement by -0.33 points and free-for-all placement by +0.50 points. The active fast trainer policy is Scavenger Initial.
+
+In 1 paired squad map-backed seeds, the zone-stall experiment scored 3.00 points versus 3.00 for the contextual-upgrade baseline.
+
+In 2 paired free-for-all map-backed seeds, the zone-stall experiment scored 4.00 points versus 4.00 for the contextual-upgrade baseline.
+
+The experimental recovery tests short map-checked headings toward the safe zone when stalled during urgent rotation. The local official-kit replay passed 300 observations at 1.0 ms host p99.
+
+On the seed that motivated the change, both variants recorded 1,246 blocked movement steps and died to the zone. This experiment did not resolve the stall and is archived as a patch for reproduction.

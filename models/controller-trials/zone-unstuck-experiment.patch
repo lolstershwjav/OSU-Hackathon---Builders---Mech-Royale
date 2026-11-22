@@ -1,0 +1,24 @@
+--- a/giddy/mech/brain.go
++++ b/giddy/mech/brain.go
+@@ -1012,6 +1012,21 @@
+ 			b.stuckSince = now
+ 		} else if now-b.stuckSince > 0.7 {
+ 			a := b.rng.Float64() * 2 * math.Pi
++			if zoneMust && zdist > 2 {
++				heading := math.Atan2(zgy-y, zgx-x)
++				best := math.Inf(-1)
++				for i := 0; i < 16; i++ {
++					dir := heading + float64(i)*math.Pi/8
++					gx, gy := x+5*math.Cos(dir), y+5*math.Sin(dir)
++					if !b.W.LineWalkable(x, y, gx, gy) {
++						continue
++					}
++					progress := zdist - hyp(zgx-gx, zgy-gy)
++					if progress > best {
++						best, a = progress, dir
++					}
++				}
++			}
+ 			b.unstuckDir = [2]float64{math.Cos(a), math.Sin(a)}
+ 			b.unstuckUntil = now + 0.5
+ 			b.stuckSince = -1
