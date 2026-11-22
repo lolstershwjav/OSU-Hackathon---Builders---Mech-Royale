@@ -31,11 +31,12 @@ type known struct {
 type circle struct{ X, Y, R float64 }
 
 type Brain struct {
-	W    *World
-	Cfg  Config
-	Slot int
-	rng  *rand.Rand
-	P    Params
+	tactics tacticalState
+	W       *World
+	Cfg     Config
+	Slot    int
+	rng     *rand.Rand
+	P       Params
 
 	tracks  map[int]*Track
 	npcs    map[int]*Track
@@ -539,6 +540,7 @@ func (b *Brain) step(o *Obs, act *Action) {
 	b.now = o.T
 	now := o.T
 	b.observe(o)
+	b.tactics.hear(o)
 	st := &me.Stats
 	x, y, zf := me.Pos[0], me.Pos[1], me.Pos[2]
 	z := &o.Zone
@@ -620,7 +622,8 @@ func (b *Brain) step(o *Obs, act *Action) {
 		case b.P.Ghost:
 
 			t.Engage = t.Dist < b.P.EngageDist || now-t.HitMe < 4 || (aimed && t.Charging && t.Dist < 120) ||
-				(t.HP < 350 && t.Dist < 120) || o.Alive <= 2
+				(t.HP < 350 && t.Dist < 120) || o.Alive <= 2 ||
+				(o.Alive == 3 && hpFrac >= 0.70 && laser != nil && t.Dist <= 120)
 			off := math.Abs(angDiff(t.Aim[0], toMe))
 
 			if b.P.Vulture > 0 && hpFrac > 0.75 && t.HP < b.P.Vulture*t.MaxHP && off > 0.6 && t.Dist < 165 {
@@ -657,7 +660,7 @@ func (b *Brain) step(o *Obs, act *Action) {
 		if !t.Engage || !t.LOS || t.Dist > maxT {
 			continue
 		}
-		s := t.Dist + hpw*t.HP
+		s := t.Dist + hpw*t.HP - b.opportunity(me, t, o.Alive)
 		if b.P.LowBonus > 0 && t.HP <= 0.3*t.MaxHP {
 			s -= b.P.LowBonus
 		}
@@ -740,6 +743,10 @@ func (b *Brain) step(o *Obs, act *Action) {
 		}
 		b.retreat = now-b.loseAt < 1.5 && b.loseAt > 0
 	}
+	if o.Alive > 3 && crowd >= 2 && (hpFrac < 0.45 || (crowd >= 3 && hpFrac < 0.75)) {
+		b.retreat = true
+		finishing = false
+	}
 
 	exposed := false
 	for _, t := range seen {
@@ -783,7 +790,7 @@ func (b *Brain) step(o *Obs, act *Action) {
 		mx, my = b.travel(me, zgx, zgy)
 		boost = (!me.InZone || now+tNeed >= deadline) && me.Energy > 5
 		mode = "zone"
-	case b.retreat && !finishing && !late:
+	case b.retreat && !finishing && (!late || o.Alive > 3):
 		if b.coverMove(o, seen, &mx, &my) {
 			boost = me.Energy > 10 && (mx != 0 || my != 0)
 			mode = "cover"
@@ -815,6 +822,9 @@ func (b *Brain) step(o *Obs, act *Action) {
 		b.coverMove(o, seen, &mx, &my):
 		boost = me.Energy > 30 && (mx != 0 || my != 0)
 		mode = "evade"
+	case zoneShould && zdist > 5 && foe != nil && !finishing && (crowd >= 2 || hpFrac < 0.55):
+		mx, my = b.coveredRotation(o, seen, zgx, zgy, deadline-now-tNeed)
+		mode = "zone"
 	case foe != nil:
 
 		ready := gun != nil && gun.Ammo > 0 && gun.Reload <= 0.25 && foe.Dist <= gun.Stats.Range-10
@@ -829,7 +839,7 @@ func (b *Brain) step(o *Obs, act *Action) {
 		if ready {
 			wantLos = 1
 		}
-		if b.P.Peek && !hot {
+		if !hot && (b.P.Peek || (light == nil && crowd >= 2)) {
 			for _, t := range seen {
 				if t.Seen == now && t.Charging && math.Abs(angDiff(t.Aim[0], math.Atan2(y-t.Pos[1], x-t.Pos[0]))) < 0.3 {
 					wantLos = -1.6
@@ -840,7 +850,7 @@ func (b *Brain) step(o *Obs, act *Action) {
 		if b.P.FinishHP > 0 {
 			finHP = b.P.FinishHP
 		}
-		if keep := b.P; b.P.Finish > 0 && foe.HP < finHP*foe.MaxHP && hpFrac > 0.42 && crowd <= 2 {
+		if keep := b.P; b.P.Finish > 0 && foe.HP < finHP*foe.MaxHP && hpFrac > 0.42 && crowd <= 2 && b.safeFinish(o, foe, seen) {
 			b.P.GunRange, b.P.LaserRange, b.P.LightRange = b.P.Finish, b.P.Finish, b.P.Finish
 			mx, my = b.fightMove(o, foe, seen, wantLos)
 			b.P = keep
@@ -864,7 +874,7 @@ func (b *Brain) step(o *Obs, act *Action) {
 			}
 			var bc *Vec3
 			for _, c := range b.cubes {
-				if d := hyp(c.Pos[0]-x, c.Pos[1]-y); d < r {
+				if d := hyp(c.Pos[0]-x, c.Pos[1]-y); d < r && b.lootSafety(o, c.Pos, d, hpFrac) >= 0.65 {
 					r = d
 					cp := c.Pos
 					bc = &cp
@@ -876,8 +886,11 @@ func (b *Brain) step(o *Obs, act *Action) {
 			}
 		}
 	case zoneShould && zdist > 2:
-		mx, my = b.travel(me, zgx, zgy)
+		mx, my = b.coveredRotation(o, seen, zgx, zgy, deadline-now-tNeed)
 		mode = "zone"
+	case b.P.Ghost && laser != nil && !danger && hpFrac >= 0.8 && o.Alive > 3 &&
+		z.NextRadius >= 70 && z.NextRadius <= 140 && b.takeRoof(o, &mx, &my, &boost, &escJump):
+		mode = "roof"
 	default:
 		lc := b.chooseLoot(o, hpFrac, danger)
 		if lc != nil {
@@ -950,7 +963,7 @@ func (b *Brain) step(o *Obs, act *Action) {
 
 	if mode == "escape" {
 		b.stuckSince = -1
-	} else if (mx != 0 || my != 0) && hyp(me.Vel[0], me.Vel[1]) < 1.2 && me.Grounded {
+	} else if mode != "roof" && (mx != 0 || my != 0) && hyp(me.Vel[0], me.Vel[1]) < 1.2 && me.Grounded {
 		if b.stuckSince < 0 {
 			b.stuckSince = now
 		} else if now-b.stuckSince > 0.7 {
@@ -1081,6 +1094,10 @@ func (b *Brain) step(o *Obs, act *Action) {
 				if !isMech || dist > w.Stats.Range*0.97 {
 					break
 				}
+				if w.Charge == 0 && (mode == "zone" || mode == "cover" || mode == "flee") &&
+					(dist > 95 || crowd >= 2) {
+					break
+				}
 				full := w.Stats.Charge
 				if b.P.Lethal && w.Charge >= w.Stats.MinCharge && w.Charge < full-0.051 {
 					dmg := w.Stats.Damage * (w.Stats.MinFrac + (1-w.Stats.MinFrac)*w.Charge/full) *
@@ -1168,6 +1185,8 @@ func (b *Brain) step(o *Obs, act *Action) {
 			aim[0] = b.npcBearing
 		case now-b.lastHurt < 2.5:
 			aim[0] = b.hurtBearing
+		case mode == "idle" && b.tactics.hasBearing(now):
+			aim[0] = b.tactics.lastBearing
 		case mx != 0 || my != 0:
 			aim[0] = math.Atan2(my, mx) + 1.15*math.Sin(now*1.3)
 		default:
@@ -1210,7 +1229,7 @@ func (b *Brain) step(o *Obs, act *Action) {
 	}
 
 	act.Move = [2]float64{mx, my}
-	act.Boost = boost && (mx != 0 || my != 0)
+	act.Boost = boost && ((mx != 0 || my != 0) || mode == "roof")
 	b.Mode = mode
 }
 
@@ -1576,10 +1595,13 @@ func (b *Brain) coverMove(o *Obs, seen []*Track, mx, my *float64) bool {
 		})
 		threats = threats[:4]
 	}
+	var eyes [4]Vec3
+	for i, t := range threats {
+		eyes[i] = b.trackedEye(t)
+	}
 	hidden := func(cx, cy float64) bool {
 		cz := b.W.WalkAt(cx, cy)
-		for _, t := range threats {
-			e := b.eye(t)
+		for _, e := range eyes[:len(threats)] {
 			if b.W.Clear(e, Vec3{cx, cy, cz + me.Stats.Height}) || b.W.Clear(e, Vec3{cx, cy, cz + me.Stats.Height*0.5}) {
 				return false
 			}
@@ -1715,6 +1737,9 @@ func (b *Brain) chooseLoot(o *Obs, hpFrac float64, danger bool) *lootChoice {
 				u += 30
 			}
 		}
+		if d > 12 {
+			u *= b.lootSafety(o, pos, d, hpFrac)
+		}
 		if u > bestU {
 			bestU = u
 			best = &lootChoice{kind, id, pos, value}
@@ -1775,7 +1800,7 @@ func (b *Brain) chooseLoot(o *Obs, hpFrac float64, danger bool) *lootChoice {
 		}
 		for i := range o.Drops {
 			d := &o.Drops[i]
-			if b.P.UseDrops && !hurt && hyp(d.Pos[0]-x, d.Pos[1]-y)/me.Stats.WalkSpeed < d.LandsIn+25 {
+			if b.safeDrop(o, d, hpFrac, danger) {
 				consider("drop", d.ID, d.Pos, 170)
 			}
 		}
@@ -1848,8 +1873,7 @@ func (b *Brain) chooseLoot(o *Obs, hpFrac float64, danger bool) *lootChoice {
 	}
 	for i := range o.Drops {
 		d := &o.Drops[i]
-		dist := hyp(d.Pos[0]-x, d.Pos[1]-y)
-		if b.P.UseDrops && dist/me.Stats.WalkSpeed < d.LandsIn+25 && !danger {
+		if b.safeDrop(o, d, hpFrac, danger) {
 			consider("drop", d.ID, d.Pos, 260)
 		}
 	}
