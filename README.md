@@ -4,13 +4,13 @@ A placement-first Python bot for the 16-mech Builders Mech Royale. It uses a tra
 
 ## Competition runtime
 
-The root Dockerfile starts Naruto through `bob_mix.py` as uid 65534. Sasuke handles practice and free-for-all decisions, with Sakura as a fallback and the existing Tsunade escape and Madara duel overrides. The Go controller incorporates [waiprotein’s MIT-licensed changes](https://github.com/waiprotein/mech-royale-bot/tree/6dcaf14cb7410497f8a195d68c18a3b56730969f) to the Giddy bot. Training checkpoints under `models/` are available for simulator work.
+The root Dockerfile runs the [team 2.3% runtime at `7337bff`](https://github.com/charliescull/mech-royale-bot/tree/7337bffd4228c4b042273f5795dff889c918d2f4) from `team23/`. Giddy drives practice and free-for-all by default, with the team’s Python controller as fallback. The upstream 140 m EndGhost threshold and 240 m squad laser search radius are retained. Naruto adds detour-aware zone timing and, before EndGhost, its situational upgrade picks, safe first-upgrade cube priority, and narrow laser-release rule. The original Naruto runtime is available through `bob_mix.py` for comparisons.
 
 ## What each file does
 
 | File | Purpose |
 | --- | --- |
-| `Dockerfile` | Builds the Go controller and starts the Python Naruto wrapper as uid 65534. |
+| `Dockerfile` | Builds the merged Go controller and starts the team 2.3% Python wrapper. |
 | `bot.py` | Loads tactical weights, chooses objectives, and handles local movement and combat. |
 | `navigation.py` | Reads the official arena, caches traversable surfaces and edges, and plans routes with bounded A*. |
 | `check_navigation.py` | Checks geometry and benchmarks a blocked route on the official arena. |

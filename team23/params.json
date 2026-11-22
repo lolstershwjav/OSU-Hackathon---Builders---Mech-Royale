@@ -1,0 +1,197 @@
+{
+ "_note": "Mech brain settings: kit picks the loadout, agents.* / reasoner / modes.<squad|ffa> hold the brain's numbers, hybrid picks who drives practice.",
+ "kit": "gunlaser",
+ "kits": {
+  "gunlaser": {
+   "name": "Gun + laser (owner, 2026-11-21)",
+   "secondary": [
+    "laser"
+   ],
+   "upgrades": [
+    "armor",
+    "plating",
+    "laser_charge",
+    "armor",
+    "plating",
+    "laser_damage",
+    "gun_damage",
+    "armor",
+    "plating",
+    "laser_damage",
+    "gun_rate",
+    "nanites",
+    "laser_damage",
+    "gun_damage",
+    "gun_rate",
+    "laser_charge",
+    "nanites",
+    "gyros",
+    "sensors",
+    "servos",
+    "gun_mag",
+    "gun_velocity",
+    "reactor",
+    "capacitor",
+    "jets"
+   ]
+  }
+ },
+ "agents": {
+  "zone": {
+   "bid": 0.95
+  },
+  "escape": {
+   "bid": 0.9,
+   "min_shooters": 3,
+   "hold_s": 2.0,
+   "join_r": 120.0,
+   "join_w": 0.5
+  },
+  "combat": {
+   "bid": 0.8
+  },
+  "loot": {
+   "bid": 0.6,
+   "see_r": 200.0,
+   "min_p": 0.6
+  },
+  "stealth": {
+   "bid": 0.5,
+   "quiet_r": 130.0
+  },
+  "farm": {
+   "bid": 0.55,
+   "max_cubes": 14,
+   "clear_r": 120.0
+  },
+  "drift": {
+   "bid": 0.1
+  },
+  "cover": {
+   "bid": 0.95,
+   "cover_r": 38.0,
+   "min_range": 45.0,
+   "ground_hold_s": 8.0,
+   "high_hold_s": 30.0,
+   "peek_s": 1.2,
+   "hide_s": 0.9,
+   "away_rad": 1.2,
+   "away_s": 1.0
+  },
+  "heal": {
+   "bid": 0.75,
+   "heal_frac": 0.75
+  },
+  "reposition": {
+   "bid": 0.7,
+   "move_s": 3.0
+  },
+  "hold": {
+   "bid": 0.65,
+   "start_s": 20.0,
+   "near_r": 120.0,
+   "hold_s": 60.0,
+   "far_r": 160.0,
+   "height_w": 3.0,
+   "ring": 0.6
+  },
+  "thirdparty": {
+   "bid": 0.7,
+   "bid_commit": 0.9
+  }
+ },
+ "harness": {
+  "sticky": 0.08,
+  "lock_s": 3.0
+ },
+ "reasoner": {
+  "ttk_max": 6.0,
+  "ttk_easy": 2.0,
+  "max_crowd": 1,
+  "crowd_r": 110.0,
+  "engage_p": 0.7,
+  "quiet_until": 30,
+  "weapon_rush_s": 60,
+  "fight_close": 70.0,
+  "modes": {
+   "squad": {
+    "ttk_max": 60.0,
+    "ttk_easy": 30.0,
+    "max_crowd": 15,
+    "quiet_until": 0
+   },
+   "ffa": {
+    "ttk_max": 6.0,
+    "ttk_easy": 2.0,
+    "max_crowd": 1,
+    "quiet_until": 30
+   }
+  }
+ },
+ "modes": {
+  "squad": {
+   "cover_in_fights": true,
+   "agents_off": [
+    "cover",
+    "heal",
+    "reposition",
+    "thirdparty"
+   ],
+   "never_run": true,
+   "gun_peek": true,
+   "peek_cover_r": 20.0,
+   "peek_out_s": 0.6,
+   "peek_back_s": 0.5,
+   "farm_enemy_r": 120,
+   "farm_clear_r": 0,
+   "farm_npc_r": 400,
+   "farm_crate_r": 300,
+   "farm_max_cubes": 30,
+   "farm_bid": 0.9,
+   "drop_any": true,
+   "drop_r": 500,
+   "cube_r": 200,
+   "loot_cube_bid": 0.95,
+   "farm_memory": true,
+   "farm_mem_r": 400,
+   "farm_boost_energy": 40
+  },
+  "ffa": {
+   "cover_in_fights": true,
+   "agents_off": [
+    "hold"
+   ],
+   "never_run": false,
+   "gun_peek": false,
+   "peek_cover_r": 20.0,
+   "peek_out_s": 0.6,
+   "peek_back_s": 0.5
+  }
+ },
+ "sound": {},
+ "dodge": {
+  "on": true,
+  "look_s": 0.6,
+  "bullet_r": 4.0,
+  "laser_r": 4.5,
+  "splash_r": 10.0,
+  "weight": 1.2,
+  "boost_energy": 25
+ },
+ "hybrid": {
+  "_note": "practice: giddy (Go child process, drivers/giddy) or anything else = our brain. ffa_switch_max_s 0 = never switch (giddy also plays the free-for-all); 90 = our brain takes over when 2+ unexplained deaths happen by 90 s. Child: wait child_timeout_ms for its answer, child_ready_s for its ready; after max_child_fails misses in a row our brain drives for good; on a missed tick our brain answers only if fewer than fallback_brain_ms have passed, else we coast on the child's last move. seed_salt / slot_salts: re-roll the child's RNG (all matches / one hello slot); 0 or empty = unchanged.",
+  "practice": "giddy",
+  "ffa_switch_max_s": 0,
+  "child_timeout_ms": 30,
+  "child_ready_s": 10,
+  "max_child_fails": 5,
+  "fallback_brain_ms": 20,
+  "seed_salt": 0,
+  "slot_endghost": {
+   "_note": "Per-slot practice late-hide radius for giddy (EndGhost: hide once the next circle is this small; 0 = off, as S17G). Empty = 140 everywhere (S20)."
+  },
+  "slot_salts": {
+   "_note": "Per-slot seed salt (empty = off). Maps a hello slot number (\"0\" to \"15\") to the seed salt used only in matches we play from that slot; every other slot keeps seed_salt. The practice board replays the same private seeds each submission and the slot is fixed per match, so one submission with one slot salted measures those matches exactly against the base score; keep a slot's salt only when the board total went up. A salt only re-rolls the driver's random choices, so it does not change the strategy in the free-for-all."
+  }
+ }
+}

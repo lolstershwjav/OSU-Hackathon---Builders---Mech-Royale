@@ -52,6 +52,10 @@ type Brain struct {
 	pathAt   float64
 	pathI    int
 
+	rotationAt    float64
+	rotationGoal  [2]float64
+	rotationExtra float64
+
 	strafe      float64
 	strafeUntil float64
 
@@ -96,6 +100,7 @@ type Brain struct {
 	npcBearing         float64
 	notPractice        bool
 	startAlive, kills  int
+	lastKillAt         float64
 	otherDead          int
 	stickID            int
 	stickAt, loseAt    float64
@@ -351,6 +356,7 @@ func (b *Brain) observe(o *Obs) {
 			}
 		case "kill":
 			b.kills++
+			b.lastKillAt = now
 			delete(b.tracks, e.Target)
 		}
 	}
@@ -464,6 +470,30 @@ func (b *Brain) zoneGoal(z *Zone, x, y float64) (float64, float64) {
 	return z.NextCenter[0] + dx/d*r, z.NextCenter[1] + dy/d*r
 }
 
+// rotationDelay adds time for a mapped detour beyond the existing travel allowance.
+func (b *Brain) rotationDelay(x, y, gx, gy, speed float64) float64 {
+	if b.rotationAt == 0 || b.now >= b.rotationAt || hyp(gx-b.rotationGoal[0], gy-b.rotationGoal[1]) > 5 {
+		b.rotationAt = b.now + 2.5
+		b.rotationGoal = [2]float64{gx, gy}
+		b.rotationExtra = 0
+		if !b.W.LineWalkable(x, y, gx, gy) {
+			path, reached := b.W.Path(x, y, gx, gy, 12000)
+			if reached {
+				px, py := x, y
+				length := 0.0
+				for _, cell := range path {
+					nx, ny := b.W.CellPos(int(cell))
+					length += hyp(nx-px, ny-py)
+					px, py = nx, ny
+				}
+				length += hyp(gx-px, gy-py)
+				b.rotationExtra = math.Max(0, length*1.15-hyp(gx-x, gy-y)*1.45)
+			}
+		}
+	}
+	return b.rotationExtra / speed
+}
+
 func hasWeapon(ws []*WeaponState, kind string) (int, *WeaponState) {
 	for i, w := range ws {
 		if w != nil && w.Kind == kind {
@@ -547,6 +577,44 @@ func (b *Brain) step(o *Obs, act *Action) {
 
 	if o.Offer != nil && len(o.Offer.Choices) > 0 {
 		p := pickUpgrade(o.Offer, b.P.LaserUp, b.P.NanoUp, b.P.SpeedUp)
+		if !b.notPractice && len(me.Upgrades) == 0 && o.Offer.Choices[p].ID == "nanites" {
+			desired := ""
+			for _, enemy := range o.Mechs {
+				if enemy.Kind == "mech" && hyp(enemy.Pos[0]-x, enemy.Pos[1]-y) <= 6 {
+					desired = "gyros"
+					break
+				}
+			}
+			if now <= 3 && hpFrac >= 0.98 && len(o.Mechs) == 0 {
+				desired = "servos"
+			}
+			for i, choice := range o.Offer.Choices {
+				if choice.ID == desired {
+					p = i
+					break
+				}
+			}
+		}
+		if !b.notPractice && len(me.Upgrades) == 1 && hpFrac >= 0.98 && len(o.Mechs) == 0 {
+			_, laser := hasWeapon(me.Weapons, "laser")
+			preferred := ""
+			if laser != nil {
+				switch o.Offer.Choices[p].ID {
+				case "armor":
+					preferred = "laser_damage"
+				case "nanites":
+					preferred = "gun_damage"
+				}
+			}
+			if preferred != "" {
+				for i, choice := range o.Offer.Choices {
+					if choice.ID == preferred {
+						p = i
+						break
+					}
+				}
+			}
+		}
 		act.Pick = &p
 	}
 
@@ -656,12 +724,16 @@ func (b *Brain) step(o *Obs, act *Action) {
 	}
 	danger := false
 	crowd := 0
+	var crossfire []*Track
 	for _, t := range seen {
 		if t.Engage || now-t.HitMe < 4 {
 			danger = true
 		}
 		if t.Seen == now && (t.Engage || (t.LOS && t.Dist < 150)) {
 			crowd++
+		}
+		if t.Seen == now && t.Dist < 150 && b.W.Clear(b.eye(t), Vec3{x, y, me.Pos[2] + st.Height*0.5}) {
+			crossfire = append(crossfire, t)
 		}
 	}
 	if danger || now-b.lastHurt < 3 {
@@ -730,8 +802,21 @@ func (b *Brain) step(o *Obs, act *Action) {
 	zdist := hyp(zgx-x, zgy-y)
 	tNeed := zdist*1.45/st.WalkSpeed + 4
 	deadline := b.zoneDeadline(z, x, y, 8)
+	if zdist > 2 && me.InZone && deadline-now-tNeed <= 75 && now+tNeed+3 < deadline {
+		tNeed += b.rotationDelay(x, y, zgx, zgy, st.WalkSpeed)
+	}
 	zoneMust := !me.InZone || now+tNeed+3 >= deadline
 	zoneShould := now+tNeed+14 >= deadline
+
+	canFinishUnderCrossfire := false
+	if len(crossfire) == 2 && target != nil && target.LOS && hpFrac >= 0.42 &&
+		target.HP <= 0.25*target.MaxHP {
+		gunReady := gun != nil && gun.Ammo > 0 && gun.Reload <= 0.15 && gun.Cooldown <= 0.2 &&
+			target.Dist <= gun.Stats.Range-10
+		laserReady := laser != nil && laser.Charge >= laser.Stats.Charge-0.05 &&
+			target.Dist <= laser.Stats.Range*0.97
+		canFinishUnderCrossfire = gunReady || laserReady
+	}
 
 	escJump := false
 	switch {
@@ -747,6 +832,10 @@ func (b *Brain) step(o *Obs, act *Action) {
 		mx, my = b.travel(me, zgx, zgy)
 		boost = (!me.InZone || now+tNeed >= deadline) && me.Energy > 5
 		mode = "zone"
+	case len(crossfire) >= 2 && !canFinishUnderCrossfire && !late && b.coverMove(o, crossfire, &mx, &my):
+		// RUC breaks multiple firing lanes before resuming normal combat.
+		boost = me.Energy > 10 && (mx != 0 || my != 0)
+		mode = "ruc"
 	case b.retreat && !finishing && !late:
 		if b.coverMove(o, seen, &mx, &my) {
 			boost = me.Energy > 10 && (mx != 0 || my != 0)
@@ -779,6 +868,10 @@ func (b *Brain) step(o *Obs, act *Action) {
 		b.coverMove(o, seen, &mx, &my):
 		boost = me.Energy > 30 && (mx != 0 || my != 0)
 		mode = "evade"
+	case b.pracOn && b.kills > 0 && now-b.lastKillAt < 1.2 &&
+		foe == nil && crowd == 0 && b.lastHurt <= b.lastKillAt &&
+		me.Grounded && !zoneShould && b.W.Exposure(x, y) < 0.45:
+		mode = "post-kill-hold"
 	case foe != nil:
 
 		ready := gun != nil && gun.Ammo > 0 && gun.Reload <= 0.25 && foe.Dist <= gun.Stats.Range-10
@@ -1059,6 +1152,9 @@ func (b *Brain) step(o *Obs, act *Action) {
 					if b.P.Backstab > 0 && b.showsBack(target, x, y) {
 						dmg *= b.rearMult()
 					}
+					if b.pracOn && dist >= 80 && dist <= 95 && w.Charge <= full*0.30 && target.HP <= 0.15*target.MaxHP {
+						lk = 0.90
+					}
 					if dmg*lk >= target.HP && math.Abs(angDiff(hy, me.Aim[0])) < tolY*0.9 && math.Abs(hp-me.Aim[1]) < tolP {
 						aim = [2]float64{hy, hp}
 						act.Fire[i] = false
@@ -1140,7 +1236,9 @@ func (b *Brain) step(o *Obs, act *Action) {
 	act.Aim = &aim
 
 	if gun != nil && gun.Reload <= 0 && gun.Ammo < gun.Stats.Mag {
-		if target == nil && farm == nil && farmPos == nil && (gun.Ammo <= gun.Stats.Mag*0.6 || now-b.lastThreatAt > 3) {
+		holdReload := mode == "post-kill-hold"
+		if target == nil && farm == nil && farmPos == nil &&
+			(holdReload || gun.Ammo <= gun.Stats.Mag*0.6 || now-b.lastThreatAt > 3) {
 			act.Reload = true
 		}
 	}
@@ -1775,9 +1873,18 @@ func (b *Brain) chooseLoot(o *Obs, hpFrac float64, danger bool) *lootChoice {
 	if me.Cubes >= b.cubeCap() {
 		cubeV = 25
 	}
+	thresholds := b.Cfg.Cubes.UpgradeThresholds
+	nearFirstUpgrade := len(thresholds) > 0 && me.Cubes+1 == thresholds[0]
 	for _, c := range b.cubes {
-		if hyp(c.Pos[0]-x, c.Pos[1]-y) < math.Max(60, b.P.LootRadius*0.7) {
-			consider("cube", c.ID, c.Pos, cubeV)
+		distance := hyp(c.Pos[0]-x, c.Pos[1]-y)
+		if distance < math.Max(60, b.P.LootRadius*0.7) {
+			value := cubeV
+			if nearFirstUpgrade && !danger && distance <= 40 &&
+				math.Abs(c.Pos[2]-me.Pos[2]) < 3 && b.zonePenalty(z, c.Pos[0], c.Pos[1]) == 0 &&
+				b.W.LineWalkable(x, y, c.Pos[0], c.Pos[1]) {
+				value *= 1.9
+			}
+			consider("cube", c.ID, c.Pos, value)
 		}
 	}
 	farmHP := 0.7
@@ -2014,7 +2121,7 @@ func squadParams(p Params) Params {
 	p.FightLoot = 70
 	p.FarmHP = 0.5
 
-	p.LaserSeek = 240
+	p.LaserSeek = 180
 	p.LaserUp = true
 	p.Lethal = true
 	p.Finish = 20
