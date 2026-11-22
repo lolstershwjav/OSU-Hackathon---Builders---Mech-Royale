@@ -30,6 +30,12 @@ type known struct {
 
 type circle struct{ X, Y, R float64 }
 
+type coverPlan struct {
+	at   float64
+	goal [2]float64
+	ok   bool
+}
+
 type Brain struct {
 	W    *World
 	Cfg  Config
@@ -51,17 +57,12 @@ type Brain struct {
 	pathAt   float64
 	pathI    int
 
-	rotationAt    float64
-	rotationGoal  [2]float64
-	rotationExtra float64
-
 	strafe      float64
 	strafeUntil float64
 
-	retreat   bool
-	coverAt   float64
-	coverGoal [2]float64
-	coverOK   bool
+	retreat    bool
+	cover      coverPlan
+	squadCover coverPlan
 
 	lastHurt    float64
 	hurtBearing float64
@@ -439,30 +440,6 @@ func (b *Brain) zoneGoal(z *Zone, x, y float64) (float64, float64) {
 	return z.NextCenter[0] + dx/d*r, z.NextCenter[1] + dy/d*r
 }
 
-// rotationDelay adds time for a mapped detour beyond the existing travel allowance.
-func (b *Brain) rotationDelay(x, y, gx, gy, speed float64) float64 {
-	if b.rotationAt == 0 || b.now >= b.rotationAt || hyp(gx-b.rotationGoal[0], gy-b.rotationGoal[1]) > 5 {
-		b.rotationAt = b.now + 2.5
-		b.rotationGoal = [2]float64{gx, gy}
-		b.rotationExtra = 0
-		if !b.W.LineWalkable(x, y, gx, gy) {
-			path, reached := b.W.Path(x, y, gx, gy, 12000)
-			if reached {
-				px, py := x, y
-				length := 0.0
-				for _, cell := range path {
-					nx, ny := b.W.CellPos(int(cell))
-					length += hyp(nx-px, ny-py)
-					px, py = nx, ny
-				}
-				length += hyp(gx-px, gy-py)
-				b.rotationExtra = math.Max(0, length*1.15-hyp(gx-x, gy-y)*1.45)
-			}
-		}
-	}
-	return b.rotationExtra / speed
-}
-
 func hasWeapon(ws []*WeaponState, kind string) (int, *WeaponState) {
 	for i, w := range ws {
 		if w != nil && w.Kind == kind {
@@ -546,44 +523,6 @@ func (b *Brain) step(o *Obs, act *Action) {
 
 	if o.Offer != nil && len(o.Offer.Choices) > 0 {
 		p := pickUpgrade(o.Offer, b.P.LaserUp, b.P.NanoUp, b.P.SpeedUp)
-		if !b.notPractice && !b.endGhostOn && len(me.Upgrades) == 0 && o.Offer.Choices[p].ID == "nanites" {
-			desired := ""
-			for _, enemy := range o.Mechs {
-				if enemy.Kind == "mech" && hyp(enemy.Pos[0]-x, enemy.Pos[1]-y) <= 6 {
-					desired = "gyros"
-					break
-				}
-			}
-			if now <= 3 && hpFrac >= 0.98 && len(o.Mechs) == 0 {
-				desired = "servos"
-			}
-			for i, choice := range o.Offer.Choices {
-				if choice.ID == desired {
-					p = i
-					break
-				}
-			}
-		}
-		if !b.notPractice && !b.endGhostOn && len(me.Upgrades) == 1 && hpFrac >= 0.98 && len(o.Mechs) == 0 {
-			_, laser := hasWeapon(me.Weapons, "laser")
-			preferred := ""
-			if laser != nil {
-				switch o.Offer.Choices[p].ID {
-				case "armor":
-					preferred = "laser_damage"
-				case "nanites":
-					preferred = "gun_damage"
-				}
-			}
-			if preferred != "" {
-				for i, choice := range o.Offer.Choices {
-					if choice.ID == preferred {
-						p = i
-						break
-					}
-				}
-			}
-		}
 		act.Pick = &p
 	}
 
@@ -688,13 +627,22 @@ func (b *Brain) step(o *Obs, act *Action) {
 		foe = hidden
 	}
 	danger := false
-	crowd := 0
+	crowd, attackerLines := 0, 0
+	var recentAttackers []*Track
 	for _, t := range seen {
 		if t.Engage || now-t.HitMe < 4 {
 			danger = true
 		}
 		if t.Seen == now && (t.Engage || (t.LOS && t.Dist < 150)) {
 			crowd++
+		}
+		// Each tracked mech contributes at most one recent damage source.
+		if b.pracOn && !b.endGhostOn && now-t.HitMe <= 2 && now-t.Seen <= 2 &&
+			hyp(t.Pos[0]-x, t.Pos[1]-y) < 230 {
+			recentAttackers = append(recentAttackers, t)
+			if t.Seen == now && t.LOS {
+				attackerLines++
+			}
 		}
 	}
 	if danger || now-b.lastHurt < 3 {
@@ -713,7 +661,7 @@ func (b *Brain) step(o *Obs, act *Action) {
 	}
 	if !b.retreat && ((hpFrac < b.P.RetreatHP && now-b.lastThreatAt < 2) || swamped) {
 		b.retreat = true
-		b.coverAt = -1
+		b.cover.at = -1
 	}
 	if b.retreat && !swamped && (hpFrac > b.P.RecoverHP || (now-b.lastThreatAt > 7 && hpFrac > 0.55)) {
 		b.retreat = false
@@ -763,12 +711,11 @@ func (b *Brain) step(o *Obs, act *Action) {
 	zdist := hyp(zgx-x, zgy-y)
 	tNeed := zdist*1.45/st.WalkSpeed + 4
 	deadline := b.zoneDeadline(z, x, y, 8)
-	if zdist > 2 && me.InZone && deadline-now-tNeed <= 75 && now+tNeed+3 < deadline {
-		tNeed += b.rotationDelay(x, y, zgx, zgy, st.WalkSpeed)
-	}
 	zoneMust := !me.InZone || now+tNeed+3 >= deadline
 	zoneShould := now+tNeed+14 >= deadline
 
+	// Once we reach cover, let the normal fight policy reassess an isolated pursuer.
+	arrivedAtCover := b.squadCover.ok && hyp(b.squadCover.goal[0]-x, b.squadCover.goal[1]-y) < 1.5
 	escJump := false
 	switch {
 	case b.escape(me, &mx, &my, &boost, &escJump):
@@ -783,8 +730,12 @@ func (b *Brain) step(o *Obs, act *Action) {
 		mx, my = b.travel(me, zgx, zgy)
 		boost = (!me.InZone || now+tNeed >= deadline) && me.Energy > 5
 		mode = "zone"
+	case !late && !zoneMust && !finishing && len(recentAttackers) >= 2 &&
+		(!arrivedAtCover || attackerLines >= 2) && b.coverMove(o, recentAttackers, &mx, &my, true):
+		boost = me.Energy > 20 && (mx != 0 || my != 0)
+		mode = "squad-cover"
 	case b.retreat && !finishing && !late:
-		if b.coverMove(o, seen, &mx, &my) {
+		if b.coverMove(o, seen, &mx, &my, false) {
 			boost = me.Energy > 10 && (mx != 0 || my != 0)
 			mode = "cover"
 		} else if target != nil {
@@ -805,14 +756,14 @@ func (b *Brain) step(o *Obs, act *Action) {
 	case target == nil && now-b.lastHurt < 2.5 && !late && b.P.Ghost && b.hideFromBearing(o, seen, &mx, &my):
 		boost = me.Energy > 30 && (mx != 0 || my != 0)
 		mode = "cover"
-	case now < b.P.EarlyHide && exposed && !finishing && b.coverMove(o, seen, &mx, &my):
+	case now < b.P.EarlyHide && exposed && !finishing && b.coverMove(o, seen, &mx, &my, false):
 		boost = me.Energy > 20 && (mx != 0 || my != 0)
 		mode = "earlyhide"
-	case foe == nil && shy != nil && !late && b.coverMove(o, seen, &mx, &my):
+	case foe == nil && shy != nil && !late && b.coverMove(o, seen, &mx, &my, false):
 		boost = me.Energy > 40 && (mx != 0 || my != 0)
 		mode = "shy"
 	case b.P.Evade && foe != nil && !late && !finishing && foe.Dist > b.P.EngageDist*1.2 && foe.HP > 0.45*foe.MaxHP &&
-		b.coverMove(o, seen, &mx, &my):
+		b.coverMove(o, seen, &mx, &my, false):
 		boost = me.Energy > 30 && (mx != 0 || my != 0)
 		mode = "evade"
 	case foe != nil:
@@ -1094,9 +1045,6 @@ func (b *Brain) step(o *Obs, act *Action) {
 					}
 					if b.P.Backstab > 0 && b.showsBack(target, x, y) {
 						dmg *= b.rearMult()
-					}
-					if b.pracOn && !b.endGhostOn && dist >= 80 && dist <= 95 && w.Charge <= full*0.30 && target.HP <= 0.15*target.MaxHP {
-						lk = 0.90
 					}
 					if dmg*lk >= target.HP && math.Abs(angDiff(hy, me.Aim[0])) < tolY*0.9 && math.Abs(hp-me.Aim[1]) < tolP {
 						aim = [2]float64{hy, hp}
@@ -1558,7 +1506,11 @@ func (b *Brain) fightMove(o *Obs, tg *Track, seen []*Track, wantLos float64) (fl
 	return mx, my
 }
 
-func (b *Brain) coverMove(o *Obs, seen []*Track, mx, my *float64) bool {
+func (b *Brain) coverMove(o *Obs, seen []*Track, mx, my *float64, insideNextZone bool) bool {
+	plan := &b.cover
+	if insideNextZone {
+		plan = &b.squadCover
+	}
 	me := &o.Self
 	x, y := me.Pos[0], me.Pos[1]
 	var threats []*Track
@@ -1586,14 +1538,19 @@ func (b *Brain) coverMove(o *Obs, seen []*Track, mx, my *float64) bool {
 		}
 		return true
 	}
-	if b.coverOK && b.now-b.coverAt < 0.4 {
-		*mx, *my = b.travelCover(me)
+	if b.now-plan.at < 0.4 && (plan.ok || insideNextZone && plan.at > 0) {
+		gx, gy := plan.goal[0], plan.goal[1]
+		if !plan.ok || insideNextZone && (b.zonePenalty(&o.Zone, gx, gy) != 0 || !hidden(gx, gy)) {
+			return false
+		}
+		*mx, *my = b.travelCover(me, plan.goal)
 		return true
 	}
-	b.coverAt = b.now
+	plan.at = b.now
+	plan.ok = false
 	if hidden(x, y) && b.zonePenalty(&o.Zone, x, y) == 0 {
-		b.coverOK = true
-		b.coverGoal = [2]float64{x, y}
+		plan.ok = true
+		plan.goal = [2]float64{x, y}
 		*mx, *my = 0, 0
 		return true
 	}
@@ -1620,8 +1577,9 @@ func (b *Brain) coverMove(o *Obs, seen []*Track, mx, my *float64) bool {
 		if (ci+cj)%2 == 0 && steps > 0 {
 			cx, cy := w.CellPos(c)
 			checked++
-			if hidden(cx, cy) {
-				sc := steps*2 + b.zonePenalty(&o.Zone, cx, cy)
+			penalty := b.zonePenalty(&o.Zone, cx, cy)
+			if (!insideNextZone || penalty == 0) && hidden(cx, cy) {
+				sc := steps*2 + penalty
 				near := math.Inf(1)
 				for _, t := range threats {
 					near = math.Min(near, hyp(t.Pos[0]-cx, t.Pos[1]-cy))
@@ -1650,21 +1608,20 @@ func (b *Brain) coverMove(o *Obs, seen []*Track, mx, my *float64) bool {
 		}
 	}
 	if bestC < 0 {
-		b.coverOK = false
 		return false
 	}
 	gx, gy := w.CellPos(bestC)
-	b.coverOK = true
-	b.coverGoal = [2]float64{gx, gy}
-	*mx, *my = b.travelCover(me)
+	plan.ok = true
+	plan.goal = [2]float64{gx, gy}
+	*mx, *my = b.travelCover(me, plan.goal)
 	return true
 }
 
-func (b *Brain) travelCover(me *Self) (float64, float64) {
-	if hyp(b.coverGoal[0]-me.Pos[0], b.coverGoal[1]-me.Pos[1]) < 1.5 {
+func (b *Brain) travelCover(me *Self, goal [2]float64) (float64, float64) {
+	if hyp(goal[0]-me.Pos[0], goal[1]-me.Pos[1]) < 1.5 {
 		return 0, 0
 	}
-	return b.travel(me, b.coverGoal[0], b.coverGoal[1])
+	return b.travel(me, goal[0], goal[1])
 }
 
 type lootChoice struct {
@@ -1814,18 +1771,9 @@ func (b *Brain) chooseLoot(o *Obs, hpFrac float64, danger bool) *lootChoice {
 	if me.Cubes >= b.cubeCap() {
 		cubeV = 25
 	}
-	thresholds := b.Cfg.Cubes.UpgradeThresholds
-	nearFirstUpgrade := len(thresholds) > 0 && me.Cubes+1 == thresholds[0]
 	for _, c := range b.cubes {
-		distance := hyp(c.Pos[0]-x, c.Pos[1]-y)
-		if distance < math.Max(60, b.P.LootRadius*0.7) {
-			value := cubeV
-			if !b.notPractice && !b.endGhostOn && nearFirstUpgrade && !danger && distance <= 40 &&
-				math.Abs(c.Pos[2]-me.Pos[2]) < 3 && b.zonePenalty(z, c.Pos[0], c.Pos[1]) == 0 &&
-				b.W.LineWalkable(x, y, c.Pos[0], c.Pos[1]) {
-				value *= 1.9
-			}
-			consider("cube", c.ID, c.Pos, value)
+		if hyp(c.Pos[0]-x, c.Pos[1]-y) < math.Max(60, b.P.LootRadius*0.7) {
+			consider("cube", c.ID, c.Pos, cubeV)
 		}
 	}
 	farmHP := 0.7
@@ -1937,7 +1885,7 @@ func (b *Brain) hideFromBearing(o *Obs, seen []*Track, mx, my *float64) bool {
 	me := &o.Self
 	ghost := &Track{}
 	ghost.Pos = Vec3{me.Pos[0] + math.Cos(b.hurtBearing)*80, me.Pos[1] + math.Sin(b.hurtBearing)*80, me.Pos[2]}
-	return b.coverMove(o, append([]*Track{ghost}, seen...), mx, my)
+	return b.coverMove(o, append([]*Track{ghost}, seen...), mx, my, false)
 }
 
 func (b *Brain) dodge(o *Obs) (dx, dy float64, laser bool) {
