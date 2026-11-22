@@ -1,0 +1,69 @@
+{
+ "overrides": {
+  "Finish": 21.777
+ },
+ "log": [
+  {
+   "gen": 0,
+   "diff": 0.75,
+   "accepted": true,
+   "changed": {
+    "Finish": 21.777
+   }
+  },
+  {
+   "gen": 0,
+   "diff": -0.3125,
+   "accepted": false,
+   "changed": {
+    "FarmHP": 0.478,
+    "RetreatHP": 0.433
+   }
+  },
+  {
+   "gen": 1,
+   "diff": -0.375,
+   "accepted": false,
+   "changed": {
+    "Stick": 143.676,
+    "OddsFlee": 0.122
+   }
+  },
+  {
+   "gen": 1,
+   "diff": -0.375,
+   "accepted": false,
+   "changed": {
+    "MaxTarget": 237.736
+   }
+  },
+  {
+   "gen": 2,
+   "diff": 0,
+   "accepted": false,
+   "changed": {
+    "Stick": 125.223,
+    "LowBonus": 83.095,
+    "MaxTarget": 231.711
+   }
+  },
+  {
+   "gen": 2,
+   "diff": -0.375,
+   "accepted": false,
+   "changed": {
+    "LaserRange": 133.048,
+    "LootRadius": 160.159
+   }
+  },
+  {
+   "gen": 2,
+   "diff": -1.0625,
+   "accepted": false,
+   "changed": {
+    "LaserRange": 114.588,
+    "Stick": 186.752
+   }
+  }
+ ]
+}

@@ -1,8 +1,10 @@
 package mech
 
 import (
+	"encoding/json"
 	"math"
 	"math/rand"
+	"os"
 	"sort"
 )
 
@@ -145,6 +147,15 @@ type Params struct {
 	Finish     float64
 }
 
+// overrideFrom applies a JSON object from the named environment variable on top of p.
+// Only the fields named in the JSON change, e.g. SASUKE_SQUAD={"EngageDist":70,"Finish":20}.
+func overrideFrom(env string, p Params) Params {
+	if s := os.Getenv(env); s != "" {
+		_ = json.Unmarshal([]byte(s), &p)
+	}
+	return p
+}
+
 func DefaultParams() Params {
 	p := Params{RetreatHP: 0.38, RecoverHP: 0.8, GunRange: 85, LightRange: 28, LaserRange: 85, EngageDist: 60, FarmNPC: true, Explore: false,
 		Ghost: true, HomeExpo: 120, LootRadius: 90, CrateUntil: 150, UseDrops: false, Dodge: true, NoMortar: true,
@@ -152,7 +163,7 @@ func DefaultParams() Params {
 
 	p.Opening = true
 
-	return p
+	return overrideFrom("SASUKE_BASE", p)
 }
 
 func NewBrain(h *Hello, w *World) *Brain {
@@ -1921,7 +1932,7 @@ func squadParams(p Params) Params {
 	p.LaserUp = true
 	p.Finish = 14
 
-	return p
+	return overrideFrom("SASUKE_SQUAD", p)
 }
 
 func (b *Brain) cubeCap() int {
